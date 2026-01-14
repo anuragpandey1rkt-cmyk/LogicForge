@@ -1,25 +1,38 @@
 import streamlit as st
-import openai
+import google.generativeai as genai
+from google.api_core.exceptions import InvalidArgument
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Ultra-Accurate Code Generator",
+    page_title="Gemini Code Architect",
     page_icon="💎",
     layout="wide"
 )
 
-# --- 2. YOUR SECRET "CHART" LOGIC ---
-# This is the most important part. 
-# Paste the text from your charts/Gemini chat inside the triple quotes below.
-# This acts as the "Constitution" for the AI.
+# --- 2. SECURITY CHECK ---
+# This looks for the key in your secrets file
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+except FileNotFoundError:
+    st.error("Secrets file not found. Please create a .streamlit/secrets.toml file.")
+    st.stop()
+except KeyError:
+    st.error("Key 'GEMINI_API_KEY' not found in secrets.toml.")
+    st.stop()
+
+# Configure Gemini securely
+genai.configure(api_key=api_key)
+
+# --- 3. THE BRAIN (Your Architecture Logic) ---
 SYSTEM_LOGIC = """
 [ROLE]
 You are a Senior Streamlit Developer. You do not write simple scripts. 
-You build "PWA-Style" Streamlit apps using Supabase for backend and Groq for AI.
+You build "PWA-Style" Streamlit apps using Supabase for backend and Google Gemini for AI.
 
 [STRICT ARCHITECTURE RULES]
-1. **Tech Stack**: Use `streamlit`, `supabase` (for auth/db), `groq` (for AI), and `graphviz` (if needed).
-2. **AI Helper**: ALWAYS define a helper function `ask_ai(prompt)` that uses `groq_client.chat.completions.create` with model `llama-3.1-8b-instant`.
+1. **Tech Stack**: Use `streamlit`, `supabase` (for auth/db), `google-generativeai` (for AI), and `graphviz` (if needed).
+2. **AI Helper**: ALWAYS define a helper function `ask_ai(prompt)` that uses `model.generate_content(prompt)`.
+   - Initialize model: `model = genai.GenerativeModel('gemini-1.5-flash')`
 3. **Session State**: Initialize a dictionary in `st.session_state` for: 'user', 'xp', 'streak', 'feature' (navigation), and 'chat_history'.
 4. **Navigation**: Do NOT use `st.sidebar.selectbox`. Use a Custom Navigation System:
    - Define a function `go_to(page)`.
@@ -35,68 +48,56 @@ You build "PWA-Style" Streamlit apps using Supabase for backend and Groq for AI.
 - Ensure the `main()` function handles the routing logic.
 """
 
-# --- 3. APP INTERFACE ---
-st.markdown("""
-    <style>
-    .main-header {font-size: 3em; color: #4A90E2; text-align: center; margin-bottom: 0px;}
-    .sub-header {font-size: 1.2em; color: #666; text-align: center; margin-bottom: 30px;}
-    .stTextArea textarea {background-color: #f4f7f6; border-radius: 10px;}
-    </style>
-    """, unsafe_allow_html=True)
+# --- 4. APP INTERFACE ---
+st.title("💎 Gemini Code Architect")
+st.markdown("Generates **perfect** apps based on your custom PWA architecture.")
 
-st.markdown('<div class="main-header">💎 Perfect Code Generator</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Powered by your Custom Chart Logic</div>', unsafe_allow_html=True)
-
-# Sidebar for API Key
+# Sidebar
 with st.sidebar:
-    st.header("🔑 AI Settings")
-    api_key = st.text_input("OpenAI API Key", type="password")
-    model = st.selectbox("Select Model", ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"], index=0)
-    st.info("This app uses your hidden 'Chart' logic to ensure code perfection.")
+    st.header("⚙️ Status")
+    st.success("API Key Connected ✅")
+    st.info("Using Model: **gemini-1.5-flash**")
 
 # Main Input
-col1, col2 = st.columns([3, 1])
+col1, col2 = st.columns([2, 1])
 
 with col1:
-    user_requirement = st.text_area("What app/program do you want to create?", height=200, placeholder="Describe the functionality here...")
+    user_requirement = st.text_area("Describe the App you want to build:", height=200, placeholder="E.g., A Finance Tracker PWA that logs expenses to Supabase and uses AI to give budget advice...")
 
 with col2:
-    st.write("###")
-    st.write("###")
-    generate_btn = st.button("🚀 Generate Perfect Code", type="primary", use_container_width=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    generate_btn = st.button("🚀 Build It Now", type="primary", use_container_width=True)
 
-# --- 4. GENERATION ENGINE ---
+# --- 5. GENERATION ENGINE ---
 if generate_btn:
-    if not api_key:
-        st.error("Please enter your OpenAI API key in the sidebar.")
-        st.stop()
-    
     if not user_requirement:
         st.warning("Please describe what you want to build.")
         st.stop()
 
-    client = openai.OpenAI(api_key=api_key)
-
-    with st.spinner("Consulting your Charts and drafting code..."):
+    with st.spinner("Consulting the architecture charts and writing code..."):
         try:
-            # We combine your Chart Logic (System) with the User Request
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_LOGIC},
-                    {"role": "user", "content": f"Task: {user_requirement}\n\nStrictly follow the Chart Logic provided."}
-                ],
-                temperature=0.1  # Low temperature = strict adherence to your charts (High Accuracy)
+            model = genai.GenerativeModel(
+                model_name="gemini-1.5-flash",
+                system_instruction=SYSTEM_LOGIC
+            )
+
+            response = model.generate_content(
+                f"Task: {user_requirement}\n\nStrictly follow the Architecture Rules provided."
             )
             
-            generated_code = response.choices[0].message.content
+            generated_code = response.text
             
-            st.success("✨ Code generated successfully following your rules!")
+            # Clean up markdown
+            if generated_code.startswith("```python"):
+                generated_code = generated_code.split("```python")[1]
+            if generated_code.endswith("```"):
+                generated_code = generated_code[:-3]
+            
+            st.success("✨ Code Generated Successfully!")
             st.code(generated_code, language='python')
             
-            # Option to download
             st.download_button(
-                label="📥 Download Code",
+                label="📥 Download .py File",
                 data=generated_code,
                 file_name="generated_app.py",
                 mime="text/x-python"
