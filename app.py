@@ -3,7 +3,7 @@ from groq import Groq
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Groq Code Architect",
+    page_title="Groq Code Architect & Debugger",
     page_icon="⚡",
     layout="wide"
 )
@@ -16,8 +16,7 @@ try:
 except (FileNotFoundError, KeyError):
     pass # We will handle this in the sidebar
 
-# --- 3. YOUR "CHART" LOGIC (The Brain) ---
-# This ruleset forces the AI to build apps exactly like your "Study Buddy"
+# --- 3. THE "ARCHITECT" LOGIC (For Building Apps) ---
 SYSTEM_LOGIC = """
 [ROLE]
 You are a Senior Streamlit Developer. You do not write simple scripts. 
@@ -26,7 +25,7 @@ You build "PWA-Style" Streamlit apps using Supabase for backend and Groq (Llama 
 [STRICT ARCHITECTURE RULES]
 1. **Tech Stack**: Use `streamlit`, `supabase` (for auth/db), `groq` (for AI), and `graphviz` (if needed).
 2. **AI Helper**: ALWAYS define a helper function `ask_ai(prompt)` that uses `groq_client.chat.completions.create`.
-   - Model: `llama-3.3-70b-versatile` (or `llama-3.1-8b-instant` for speed).
+   - Model: `llama-3.3-70b-versatile`.
 3. **Session State**: Initialize a dictionary in `st.session_state` for: 'user', 'xp', 'streak', 'feature' (navigation), and 'chat_history'.
 4. **Navigation**: Do NOT use `st.sidebar.selectbox`. Use a Custom Navigation System:
    - Define a function `go_to(page)`.
@@ -43,14 +42,11 @@ You build "PWA-Style" Streamlit apps using Supabase for backend and Groq (Llama 
 """
 
 # --- 4. APP INTERFACE ---
-st.title("⚡ Groq Code Architect")
-st.markdown("Generates **perfect** apps based on your custom PWA architecture using **Llama 3.3**.")
+st.title("⚡ Groq Code Architect & Debugger")
 
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
-    
-    # If key wasn't in secrets, show input box
     if not api_key:
         api_key = st.text_input("Enter Groq API Key", type="password", help="Get it free at console.groq.com")
         if not api_key:
@@ -59,60 +55,92 @@ with st.sidebar:
         st.success("API Key Connected (Securely) ✅")
     
     model = st.selectbox("Select Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"], index=0)
-    st.info("Tip: '70b' is smarter for writing code.")
+    st.info("Tip: Use '70b' for complex coding and debugging.")
 
-# Main Input
-col1, col2 = st.columns([2, 1])
+if not api_key:
+    st.stop()
 
-with col1:
-    user_requirement = st.text_area("Describe the App you want to build:", height=200, placeholder="E.g., A Finance Tracker PWA that logs expenses to Supabase and uses AI to give budget advice...")
+client = Groq(api_key=api_key)
 
-with col2:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    generate_btn = st.button("🚀 Build It Now", type="primary", use_container_width=True)
+# --- 5. MAIN TABS ---
+tab_build, tab_debug = st.tabs(["🏗️ Build App", "🔧 Debugger / Chat"])
 
-# --- 5. GENERATION ENGINE ---
-if generate_btn:
-    if not api_key:
-        st.error("Please provide an API Key (in Secrets or Sidebar).")
-        st.stop()
-        
-    if not user_requirement:
-        st.warning("Please describe what you want to build.")
-        st.stop()
+# === TAB 1: BUILDER ===
+with tab_build:
+    st.markdown("### Describe the PWA you want to build")
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        user_requirement = st.text_area("App Description:", height=150, placeholder="E.g., A Finance Tracker PWA that logs expenses to Supabase...")
+    
+    with col2:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        generate_btn = st.button("🚀 Build It Now", type="primary", use_container_width=True)
 
-    client = Groq(api_key=api_key)
+    if generate_btn and user_requirement:
+        with st.spinner("Consulting the architecture charts and writing code..."):
+            try:
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_LOGIC},
+                        {"role": "user", "content": f"Task: {user_requirement}\n\nStrictly follow the Architecture Rules provided."}
+                    ],
+                    temperature=0.1,
+                    max_tokens=7000
+                )
+                
+                generated_code = completion.choices[0].message.content
+                
+                # Clean up
+                if generated_code.startswith("```python"):
+                    generated_code = generated_code.split("```python")[1]
+                if generated_code.endswith("```"):
+                    generated_code = generated_code[:-3]
+                
+                st.success("✨ Code Generated Successfully!")
+                st.code(generated_code, language='python')
+                
+                st.download_button("📥 Download .py File", generated_code, "generated_app.py", "text/x-python")
+                
+            except Exception as e:
+                st.error(f"Groq Error: {e}")
 
-    with st.spinner("Consulting the architecture charts and writing code..."):
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_LOGIC},
-                    {"role": "user", "content": f"Task: {user_requirement}\n\nStrictly follow the Architecture Rules provided."}
-                ],
-                temperature=0.1, # Low temp for precise code
-                max_tokens=7000, 
-                stream=False
-            )
-            
-            generated_code = completion.choices[0].message.content
-            
-            # Clean up output
-            if generated_code.startswith("```python"):
-                generated_code = generated_code.split("```python")[1]
-            if generated_code.endswith("```"):
-                generated_code = generated_code[:-3]
-            
-            st.success("✨ Code Generated Successfully!")
-            st.code(generated_code, language='python')
-            
-            st.download_button(
-                label="📥 Download .py File",
-                data=generated_code,
-                file_name="generated_app.py",
-                mime="text/x-python"
-            )
-            
-        except Exception as e:
-            st.error(f"Groq Error: {e}")
+# === TAB 2: DEBUGGER / CHAT ===
+with tab_debug:
+    st.markdown("### 🔧 Chat with the Error Fixer")
+    st.info("Paste your error message or broken code below. The AI will fix it.")
+
+    # Initialize Chat History
+    if "debug_history" not in st.session_state:
+        st.session_state.debug_history = [
+            {"role": "assistant", "content": "Hello! I am your Senior Developer. Paste any error or code snippet here, and I'll help you fix it."}
+        ]
+
+    # Display History
+    for msg in st.session_state.debug_history:
+        st.chat_message(msg["role"]).write(msg["content"])
+
+    # User Input
+    if user_query := st.chat_input("Paste error here..."):
+        # Add to history
+        st.session_state.debug_history.append({"role": "user", "content": user_query})
+        st.chat_message("user").write(user_query)
+
+        # AI Response
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing error..."):
+                try:
+                    debug_response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": "You are an expert Python/Streamlit Debugger. Your goal is to provide specific, fixable code solutions. If the user pastes an error, explain WHY it happened and providing the FIXED code block immediately."},
+                            *st.session_state.debug_history
+                        ],
+                        temperature=0.3
+                    )
+                    reply = debug_response.choices[0].message.content
+                    st.markdown(reply)
+                    st.session_state.debug_history.append({"role": "assistant", "content": reply})
+                except Exception as e:
+                    st.error(f"Error: {e}")
