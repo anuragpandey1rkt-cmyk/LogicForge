@@ -57,11 +57,18 @@ with st.sidebar:
     else:
         st.success("API Key Connected ✅")
     
-    # Sidebar Model Selection
-    model = st.selectbox("Select Model", [
-        "llama-3.3-70b-versatile",      # Best Logic
-        "llama-3.2-11b-vision-preview", # Best Vision
+    # --- UPDATED MODEL SELECTOR (FUTURE PROOF) ---
+    model_option = st.selectbox("Select Model", [
+        "llama-3.3-70b-versatile",      # Best Logic (Text Only)
+        "llama-3.2-90b-vision-preview", # Try this Vision model first
+        "llama-3.2-11b-vision-preview", # Backup Vision
+        "Custom..."                     # Failsafe
     ], index=0)
+    
+    if model_option == "Custom...":
+        model = st.text_input("Enter Model Name", value="llama-3.2-90b-vision-preview", help="Check console.groq.com/docs/models for latest IDs")
+    else:
+        model = model_option
 
 if not api_key:
     st.warning("⚠️ Enter Groq API Key to start.")
@@ -77,7 +84,7 @@ with tab_build:
     col1, col2 = st.columns([3, 1])
     with col1:
         user_requirement = st.text_area("App Idea:", height=150, placeholder="E.g. A Student Portal with Login and Grades")
-        uploaded_sketch = st.file_uploader("Upload UI Sketch (Optional)", type=["png", "jpg"], key="build_img")
+        uploaded_sketch = st.file_uploader("Upload UI Sketch (Optional)", type=["png", "jpg", "jpeg"], key="build_img")
     with col2:
         st.markdown("<br><br>", unsafe_allow_html=True)
         generate_btn = st.button("🚀 Build Code", type="primary", use_container_width=True)
@@ -85,11 +92,14 @@ with tab_build:
     if generate_btn and (user_requirement or uploaded_sketch):
         with st.spinner("Architecting Solution..."):
             try:
-                # --- AUTO-SWITCH LOGIC FOR VISION ---
+                # --- ROBUST AUTO-SWITCH LOGIC ---
                 active_model = model
-                if uploaded_sketch and "vision" not in model:
-                    st.toast("⚠️ Switching to Vision Model...", icon="👁️")
-                    active_model = "llama-3.2-11b-vision-preview"
+                
+                # If image exists BUT current model is Text-Only (70b-versatile), force a switch
+                if uploaded_sketch and "vision" not in active_model:
+                    st.toast("⚠️ Auto-switching to Vision model...", icon="👁️")
+                    # Default to the 90b vision model as it is more likely to be active
+                    active_model = "llama-3.2-90b-vision-preview"
 
                 messages = [{"role": "system", "content": SYSTEM_LOGIC}]
                 content = []
@@ -112,55 +122,26 @@ with tab_build:
                 else:
                     st.markdown(full_res)
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"Groq Error: {e}")
+                if "decommissioned" in str(e).lower():
+                    st.info("💡 Tip: Select 'Custom...' in the sidebar and enter a valid model name from the Groq Console.")
 
-# === TAB 2: AI CHAT & FIXER (UPDATED) ===
-with tab_chat:
-    st.markdown("### 💬 Chat with Senior Developer")
-    st.caption("Ask questions, explain concepts, or paste errors to fix.")
-
-    # 1. Initialize Chat History
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [
-            {"role": "assistant", "content": "Hello! I'm LogicForge AI. Need help debugging code or understanding a concept?"}
-        ]
-
-    # 2. Display History
-    for msg in st.session_state.chat_history:
-        st.chat_message(msg["role"]).write(msg["content"])
-
-    # 3. Chat Input & Processing
-    if user_input := st.chat_input("Type your message or paste error..."):
-        # Add User Message
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        st.chat_message("user").write(user_input)
-
-        # Generate Response
+# === TAB 2: DEBUGGER ===
+with tab_debug:
+    st.info("Paste errors here. I'll fix them instantly.")
+    err_input = st.chat_input("Paste error message...")
+    if err_input:
+        with st.chat_message("user"): st.write(err_input)
         with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                try:
-                    # Construct Prompt History
-                    # We add a System Prompt at the start to define behavior
-                    messages = [
-                        {"role": "system", "content": "You are a helpful Senior Python Developer. You can chat normally AND fix code. If the user sends an error, provide the fix. If they say hi, chat back."}
+            with st.spinner("Fixing..."):
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "You are a Python Debugger. Provide the FIXED code block only."},
+                        {"role": "user", "content": err_input}
                     ]
-                    # Append session history (excluding system msgs from previous turns if any)
-                    for m in st.session_state.chat_history:
-                        messages.append({"role": m["role"], "content": m["content"]})
-
-                    response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", # Using the smart text model for chat
-                        messages=messages,
-                        temperature=0.3
-                    )
-                    reply = response.choices[0].message.content
-                    st.markdown(reply)
-                    
-                    # Save Assistant Message
-                    st.session_state.chat_history.append({"role": "assistant", "content": reply})
-                    
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                )
+                st.markdown(res.choices[0].message.content)
 
 # === TAB 3: DOCS GENERATOR ===
 with tab_docs:
@@ -189,5 +170,3 @@ with tab_docs:
                     messages=[{"role": "user", "content": prompt}]
                 )
                 st.markdown(res.choices[0].message.content)
-        else:
-            st.warning("Please describe the app first.")
