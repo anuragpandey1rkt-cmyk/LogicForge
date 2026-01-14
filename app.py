@@ -58,10 +58,10 @@ with st.sidebar:
         st.success("API Key Connected ✅")
     
     # --- UPDATED MODEL SELECTOR (FUTURE PROOF) ---
+    # We allow a "Custom" option so you can always type in a working model if Groq deletes one
     model_option = st.selectbox("Select Model", [
         "llama-3.3-70b-versatile",      # Best Logic (Text Only)
-        "llama-3.2-90b-vision-preview", # Try this Vision model first
-        "llama-3.2-11b-vision-preview", # Backup Vision
+        "llama-3.2-90b-vision-preview", # Best Vision (Use this for images)
         "Custom..."                     # Failsafe
     ], index=0)
     
@@ -77,6 +77,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # --- TABS FOR WORKFLOW ---
+# Fixed variable names to prevent NameError
 tab_build, tab_chat, tab_docs = st.tabs(["🏗️ Build App", "💬 AI Chat & Fixer", "📄 Write Docs"])
 
 # === TAB 1: BUILDER ===
@@ -95,10 +96,9 @@ with tab_build:
                 # --- ROBUST AUTO-SWITCH LOGIC ---
                 active_model = model
                 
-                # If image exists BUT current model is Text-Only (70b-versatile), force a switch
+                # If image exists BUT current model is Text-Only, force a switch to a known Vision model
                 if uploaded_sketch and "vision" not in active_model:
                     st.toast("⚠️ Auto-switching to Vision model...", icon="👁️")
-                    # Default to the 90b vision model as it is more likely to be active
                     active_model = "llama-3.2-90b-vision-preview"
 
                 messages = [{"role": "system", "content": SYSTEM_LOGIC}]
@@ -124,24 +124,46 @@ with tab_build:
             except Exception as e:
                 st.error(f"Groq Error: {e}")
                 if "decommissioned" in str(e).lower():
-                    st.info("💡 Tip: Select 'Custom...' in the sidebar and enter a valid model name from the Groq Console.")
+                    st.info("💡 Tip: Select 'Custom...' in the sidebar and enter 'llama-3.2-90b-vision-preview'.")
 
-# === TAB 2: DEBUGGER ===
-with tab_debug:
-    st.info("Paste errors here. I'll fix them instantly.")
-    err_input = st.chat_input("Paste error message...")
-    if err_input:
-        with st.chat_message("user"): st.write(err_input)
+# === TAB 2: AI CHAT & FIXER ===
+with tab_chat:
+    st.markdown("### 💬 Chat with Senior Developer")
+    st.caption("Ask questions, explain concepts, or paste errors to fix.")
+
+    # 1. Initialize Chat History
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = [
+            {"role": "assistant", "content": "Hello! I'm LogicForge AI. Need help debugging code or understanding a concept?"}
+        ]
+
+    # 2. Display History
+    for msg in st.session_state.chat_history:
+        st.chat_message(msg["role"]).write(msg["content"])
+
+    # 3. Chat Input & Processing
+    if user_input := st.chat_input("Type your message or paste error..."):
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        st.chat_message("user").write(user_input)
+
         with st.chat_message("assistant"):
-            with st.spinner("Fixing..."):
-                res = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[
-                        {"role": "system", "content": "You are a Python Debugger. Provide the FIXED code block only."},
-                        {"role": "user", "content": err_input}
-                    ]
-                )
-                st.markdown(res.choices[0].message.content)
+            with st.spinner("Thinking..."):
+                try:
+                    messages = [{"role": "system", "content": "You are a helpful Senior Python Developer."}]
+                    for m in st.session_state.chat_history:
+                        messages.append({"role": m["role"], "content": m["content"]})
+
+                    response = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile", # Always use text model for chat
+                        messages=messages,
+                        temperature=0.3
+                    )
+                    reply = response.choices[0].message.content
+                    st.markdown(reply)
+                    st.session_state.chat_history.append({"role": "assistant", "content": reply})
+                    
+                except Exception as e:
+                    st.error(f"Error: {e}")
 
 # === TAB 3: DOCS GENERATOR ===
 with tab_docs:
