@@ -1,38 +1,32 @@
 import streamlit as st
-import google.generativeai as genai
-from google.api_core.exceptions import InvalidArgument
+from groq import Groq
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Gemini Code Architect",
-    page_icon="💎",
+    page_title="Groq Code Architect",
+    page_icon="⚡",
     layout="wide"
 )
 
-# --- 2. SECURITY CHECK ---
-# This looks for the key in your secrets file
+# --- 2. API KEY MANAGEMENT ---
+# Try to get key from secrets, otherwise ask in sidebar
+api_key = None
 try:
-    api_key = st.secrets["GEMINI_API_KEY"]
-except FileNotFoundError:
-    st.error("Secrets file not found. Please create a .streamlit/secrets.toml file.")
-    st.stop()
-except KeyError:
-    st.error("Key 'GEMINI_API_KEY' not found in secrets.toml.")
-    st.stop()
+    api_key = st.secrets["GROQ_API_KEY"]
+except (FileNotFoundError, KeyError):
+    pass # We will handle this in the sidebar
 
-# Configure Gemini securely
-genai.configure(api_key=api_key)
-
-# --- 3. THE BRAIN (Your Architecture Logic) ---
+# --- 3. YOUR "CHART" LOGIC (The Brain) ---
+# This ruleset forces the AI to build apps exactly like your "Study Buddy"
 SYSTEM_LOGIC = """
 [ROLE]
 You are a Senior Streamlit Developer. You do not write simple scripts. 
-You build "PWA-Style" Streamlit apps using Supabase for backend and Google Gemini for AI.
+You build "PWA-Style" Streamlit apps using Supabase for backend and Groq (Llama 3) for AI.
 
 [STRICT ARCHITECTURE RULES]
-1. **Tech Stack**: Use `streamlit`, `supabase` (for auth/db), `google-generativeai` (for AI), and `graphviz` (if needed).
-2. **AI Helper**: ALWAYS define a helper function `ask_ai(prompt)` that uses `model.generate_content(prompt)`.
-   - Initialize model: `model = genai.GenerativeModel('gemini-1.5-flash')`
+1. **Tech Stack**: Use `streamlit`, `supabase` (for auth/db), `groq` (for AI), and `graphviz` (if needed).
+2. **AI Helper**: ALWAYS define a helper function `ask_ai(prompt)` that uses `groq_client.chat.completions.create`.
+   - Model: `llama-3.3-70b-versatile` (or `llama-3.1-8b-instant` for speed).
 3. **Session State**: Initialize a dictionary in `st.session_state` for: 'user', 'xp', 'streak', 'feature' (navigation), and 'chat_history'.
 4. **Navigation**: Do NOT use `st.sidebar.selectbox`. Use a Custom Navigation System:
    - Define a function `go_to(page)`.
@@ -49,14 +43,23 @@ You build "PWA-Style" Streamlit apps using Supabase for backend and Google Gemin
 """
 
 # --- 4. APP INTERFACE ---
-st.title("💎 Gemini Code Architect")
-st.markdown("Generates **perfect** apps based on your custom PWA architecture.")
+st.title("⚡ Groq Code Architect")
+st.markdown("Generates **perfect** apps based on your custom PWA architecture using **Llama 3.3**.")
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Status")
-    st.success("API Key Connected ✅")
-    st.info("Using Model: **gemini-1.5-flash**")
+    st.header("⚙️ Settings")
+    
+    # If key wasn't in secrets, show input box
+    if not api_key:
+        api_key = st.text_input("Enter Groq API Key", type="password", help="Get it free at console.groq.com")
+        if not api_key:
+            st.warning("⚠️ Please enter a key to proceed")
+    else:
+        st.success("API Key Connected (Securely) ✅")
+    
+    model = st.selectbox("Select Model", ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"], index=0)
+    st.info("Tip: '70b' is smarter for writing code.")
 
 # Main Input
 col1, col2 = st.columns([2, 1])
@@ -70,24 +73,32 @@ with col2:
 
 # --- 5. GENERATION ENGINE ---
 if generate_btn:
+    if not api_key:
+        st.error("Please provide an API Key (in Secrets or Sidebar).")
+        st.stop()
+        
     if not user_requirement:
         st.warning("Please describe what you want to build.")
         st.stop()
 
+    client = Groq(api_key=api_key)
+
     with st.spinner("Consulting the architecture charts and writing code..."):
         try:
-            model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash",
-                system_instruction=SYSTEM_LOGIC
-            )
-
-            response = model.generate_content(
-                f"Task: {user_requirement}\n\nStrictly follow the Architecture Rules provided."
+            completion = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_LOGIC},
+                    {"role": "user", "content": f"Task: {user_requirement}\n\nStrictly follow the Architecture Rules provided."}
+                ],
+                temperature=0.1, # Low temp for precise code
+                max_tokens=7000, 
+                stream=False
             )
             
-            generated_code = response.text
+            generated_code = completion.choices[0].message.content
             
-            # Clean up markdown
+            # Clean up output
             if generated_code.startswith("```python"):
                 generated_code = generated_code.split("```python")[1]
             if generated_code.endswith("```"):
@@ -104,4 +115,4 @@ if generate_btn:
             )
             
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(f"Groq Error: {e}")
