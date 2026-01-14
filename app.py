@@ -1,6 +1,5 @@
 import streamlit as st
 from groq import Groq
-import base64
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
@@ -16,38 +15,40 @@ try:
 except (FileNotFoundError, KeyError):
     pass 
 
-# --- 3. THE BRAIN (ADAPTIVE LOGIC) ---
+# --- 3. THE BRAIN (STRICT & COMPLETE LOGIC) ---
 SYSTEM_LOGIC = """
 [ROLE]
-You are an Expert Streamlit Developer. Build the *perfect* app for the user's request.
+You are a Senior Python Developer. You DO NOT write pseudo-code or simple examples.
+You write **Complete, Functional, and Production-Ready** Streamlit applications.
 
-[ADAPTIVE ARCHITECTURE RULES]
-1. **Analyze Request**: 
-   - Simple (calc, converter) -> Standalone Streamlit (No DB).
-   - Complex (login, history, study buddy) -> PWA Stack (Supabase + Gamification).
-2. **Stack**: Streamlit, Supabase (if needed), Groq (if AI needed).
-3. **Standards**: Modular functions, Error handling, st.secrets.
+[STRICT ARCHITECTURE RULES]
+1. **Completeness**: The code must run immediately without errors. Include ALL imports.
+2. **Complexity**: 
+   - If the user asks for a game (like Candy Crush), implement the ACTUAL game logic (grid, swapping, score), not just a placeholder.
+   - If the user asks for a financial app, implement dataframes, charts, and calculations.
+3. **Structure**:
+   - Use `st.set_page_config` first.
+   - Use `if __name__ == "__main__": main()` pattern.
+   - Use `st.session_state` for all interactive variables.
 
-[OUTPUT FORMAT]
+[OUTPUT FORMAT - DO NOT DEVIATE]
+You must provide the response in THREE distinct sections:
+
 ---
 ### SECTION 1: THE CODE
-(Full Python code block)
+(Provide the FULL, LONG, WORKING Python code block. Do not cut it short.)
+
 ---
 ### SECTION 2: EXPLANATION
-(Brief breakdown)
+(Briefly explain the key functions and how the logic works.)
+
 ---
 ### SECTION 3: SETUP
-(requirements.txt content & secrets.toml guide)
+(List exactly what to put in `requirements.txt`. Example: `streamlit`, `pandas`, `numpy`)
 """
 
-# --- 4. HELPER: IMAGE ENCODER ---
-def encode_image(uploaded_file):
-    if uploaded_file is not None:
-        return base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-    return None
-
-# --- 5. APP INTERFACE ---
-st.title("🚀 LogicForge: The AI App Architect")
+# --- 4. APP INTERFACE ---
+st.title("🚀 LogicForge: AI Architect (Text Edition)")
 st.caption("Build. Chat. Debug. Document.")
 
 with st.sidebar:
@@ -57,18 +58,11 @@ with st.sidebar:
     else:
         st.success("API Key Connected ✅")
     
-    # --- UPDATED MODEL SELECTOR (FUTURE PROOF) ---
-    # We allow a "Custom" option so you can always type in a working model if Groq deletes one
-    model_option = st.selectbox("Select Model", [
-        "llama-3.3-70b-versatile",      # Best Logic (Text Only)
-        "llama-3.2-90b-vision-preview", # Best Vision (Use this for images)
-        "Custom..."                     # Failsafe
+    # SIMPLIFIED MODEL SELECTOR (Text Only - Stable)
+    model = st.selectbox("Select Model", [
+        "llama-3.3-70b-versatile",      # Best for Logic & Code
+        "llama-3.1-8b-instant"          # Faster, for simple tasks
     ], index=0)
-    
-    if model_option == "Custom...":
-        model = st.text_input("Enter Model Name", value="llama-3.2-90b-vision-preview", help="Check console.groq.com/docs/models for latest IDs")
-    else:
-        model = model_option
 
 if not api_key:
     st.warning("⚠️ Enter Groq API Key to start.")
@@ -77,71 +71,56 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # --- TABS FOR WORKFLOW ---
-# Fixed variable names to prevent NameError
 tab_build, tab_chat, tab_docs = st.tabs(["🏗️ Build App", "💬 AI Chat & Fixer", "📄 Write Docs"])
 
-# === TAB 1: BUILDER ===
+# === TAB 1: BUILDER (Text Only) ===
 with tab_build:
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        user_requirement = st.text_area("App Idea:", height=150, placeholder="E.g. A Student Portal with Login and Grades")
-        uploaded_sketch = st.file_uploader("Upload UI Sketch (Optional)", type=["png", "jpg", "jpeg"], key="build_img")
-    with col2:
-        st.markdown("<br><br>", unsafe_allow_html=True)
-        generate_btn = st.button("🚀 Build Code", type="primary", use_container_width=True)
-
-    if generate_btn and (user_requirement or uploaded_sketch):
-        with st.spinner("Architecting Solution..."):
-            try:
-                # --- ROBUST AUTO-SWITCH LOGIC ---
-                active_model = model
-                
-                # If image exists BUT current model is Text-Only, force a switch to a known Vision model
-                if uploaded_sketch and "vision" not in active_model:
-                    st.toast("⚠️ Auto-switching to Vision model...", icon="👁️")
-                    active_model = "llama-3.2-90b-vision-preview"
-
-                messages = [{"role": "system", "content": SYSTEM_LOGIC}]
-                content = []
-                if user_requirement: content.append({"type": "text", "text": f"Task: {user_requirement}"})
-                if uploaded_sketch:
-                    img = encode_image(uploaded_sketch)
-                    content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
-                
-                messages.append({"role": "user", "content": content})
-                
-                resp = client.chat.completions.create(model=active_model, messages=messages, temperature=0.1, max_tokens=7000)
-                full_res = resp.choices[0].message.content
-                
-                if "```python" in full_res:
-                    parts = full_res.split("```python")
-                    code = parts[1].split("```")[0]
-                    explanation = parts[1].split("```")[1]
-                    st.code(code, language='python')
-                    st.markdown(explanation)
-                else:
-                    st.markdown(full_res)
-            except Exception as e:
-                st.error(f"Groq Error: {e}")
-                if "decommissioned" in str(e).lower():
-                    st.info("💡 Tip: Select 'Custom...' in the sidebar and enter 'llama-3.2-90b-vision-preview'.")
+    st.markdown("### Describe your App Idea")
+    user_requirement = st.text_area("Be specific for better results:", height=150, placeholder="E.g. Create a fully functional Tetris game with score tracking and restart button.")
+    
+    if st.button("🚀 Build Full Code", type="primary", use_container_width=True):
+        if user_requirement:
+            with st.spinner("Architecting complex solution (this may take a moment)..."):
+                try:
+                    messages = [
+                        {"role": "system", "content": SYSTEM_LOGIC},
+                        {"role": "user", "content": f"Task: {user_requirement}"}
+                    ]
+                    
+                    # We use a high token limit to ensure the code doesn't get cut off
+                    resp = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=0.1,
+                        max_tokens=8000
+                    )
+                    full_res = resp.choices[0].message.content
+                    
+                    if "```python" in full_res:
+                        parts = full_res.split("```python")
+                        code = parts[1].split("```")[0]
+                        explanation = parts[1].split("```")[1]
+                        st.code(code, language='python')
+                        st.markdown(explanation)
+                    else:
+                        st.markdown(full_res)
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        else:
+            st.warning("Please describe your app first.")
 
 # === TAB 2: AI CHAT & FIXER ===
 with tab_chat:
     st.markdown("### 💬 Chat with Senior Developer")
-    st.caption("Ask questions, explain concepts, or paste errors to fix.")
-
-    # 1. Initialize Chat History
+    
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Hello! I'm LogicForge AI. Need help debugging code or understanding a concept?"}
+            {"role": "assistant", "content": "Hello! I'm ready to help you fix bugs or explain code."}
         ]
 
-    # 2. Display History
     for msg in st.session_state.chat_history:
         st.chat_message(msg["role"]).write(msg["content"])
 
-    # 3. Chat Input & Processing
     if user_input := st.chat_input("Type your message or paste error..."):
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         st.chat_message("user").write(user_input)
@@ -154,7 +133,7 @@ with tab_chat:
                         messages.append({"role": m["role"], "content": m["content"]})
 
                     response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", # Always use text model for chat
+                        model=model,
                         messages=messages,
                         temperature=0.3
                     )
@@ -167,28 +146,22 @@ with tab_chat:
 
 # === TAB 3: DOCS GENERATOR ===
 with tab_docs:
-    st.markdown("### 📝 Generate README & Reports")
+    st.markdown("### 📝 Generate Documentation")
     
-    app_name = st.text_input("App Name", placeholder="e.g. Study Buddy")
-    app_desc = st.text_area("What does the app do?", placeholder="Briefly describe features...", height=100)
+    app_name = st.text_input("App Name", placeholder="e.g. Candy Crush Clone")
+    app_desc = st.text_area("Description", placeholder="What features does it have?", height=100)
     
-    if st.button("📄 Generate Documentation"):
+    if st.button("📄 Generate README & Report"):
         if app_desc:
-            with st.spinner("Writing Documentation..."):
+            with st.spinner("Writing Professional Docs..."):
                 prompt = f"""
-                Create a professional GitHub README.md for an app named '{app_name}'.
+                Create a professional GitHub README.md for '{app_name}'.
                 Description: {app_desc}
-                Tech Stack: Python, Streamlit, Supabase, Groq AI.
-                Include:
-                1. Project Title & Emoji
-                2. Key Features (Bullet points)
-                3. Installation Guide (pip install...)
-                4. How to Run (streamlit run app.py)
-                5. A 'Project Report' section suitable for college submission.
+                Include: Features, Installation, Usage, and a Technical Report section.
                 """
                 
                 res = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model=model,
                     messages=[{"role": "user", "content": prompt}]
                 )
                 st.markdown(res.choices[0].message.content)
