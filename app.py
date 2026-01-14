@@ -59,10 +59,11 @@ with st.sidebar:
         st.success("API Key Connected ✅")
     
     # ADDED VISION MODEL HERE
+    # UPDATED MODEL LIST (Active Models)
     model = st.selectbox("Select Model", [
-        "llama-3.2-90b-vision-preview", # Best for images
-        "llama-3.3-70b-versatile",      # Best for text-only logic
-        "llama-3.2-11b-vision-preview"  # Faster vision
+        "llama-3.3-70b-versatile",      # BEST for coding (Text only)
+        "llama-3.2-11b-vision-preview", # Use this for Vision/Images
+        "llama-3.1-8b-instant"          # Fastest
     ], index=0)
     
     st.info("Tip: Use 'Vision' models if you upload images.")
