@@ -76,7 +76,7 @@ with tab_build:
     col1, col2 = st.columns([3, 1])
     with col1:
         user_requirement = st.text_area("App Idea:", height=150, placeholder="E.g. A Student Portal with Login and Grades")
-        uploaded_sketch = st.file_uploader("Upload UI Sketch (Optional)", type=["png", "jpg"], key="build_img")
+        uploaded_sketch = st.file_uploader("Upload UI Sketch (Optional)", type=["png", "jpg", "jpeg"], key="build_img")
     with col2:
         st.markdown("<br><br>", unsafe_allow_html=True)
         generate_btn = st.button("🚀 Build Code", type="primary", use_container_width=True)
@@ -84,16 +84,34 @@ with tab_build:
     if generate_btn and (user_requirement or uploaded_sketch):
         with st.spinner("Architecting Solution..."):
             try:
+                # --- AUTO-SWITCH LOGIC ---
+                # If user uploads an image but has a Text model selected, force switch to Vision model
+                active_model = model
+                if uploaded_sketch and "vision" not in model:
+                    st.toast("⚠️ Switching to Vision Model to process image...", icon="👁️")
+                    active_model = "llama-3.2-11b-vision-preview"
+
                 messages = [{"role": "system", "content": SYSTEM_LOGIC}]
                 content = []
-                if user_requirement: content.append({"type": "text", "text": f"Task: {user_requirement}"})
+                
+                # Add Text
+                if user_requirement: 
+                    content.append({"type": "text", "text": f"Task: {user_requirement}"})
+                
+                # Add Image (Only if exists)
                 if uploaded_sketch:
                     img = encode_image(uploaded_sketch)
                     content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
                 
                 messages.append({"role": "user", "content": content})
                 
-                resp = client.chat.completions.create(model=model, messages=messages, temperature=0.1, max_tokens=7000)
+                # Send request using the ACTIVE model (which might have been auto-switched)
+                resp = client.chat.completions.create(
+                    model=active_model, 
+                    messages=messages, 
+                    temperature=0.1, 
+                    max_tokens=7000
+                )
                 full_res = resp.choices[0].message.content
                 
                 if "```python" in full_res:
