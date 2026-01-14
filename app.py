@@ -4,8 +4,8 @@ import base64
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(
-    page_title="Groq Architect (Adaptive)",
-    page_icon="🧠",
+    page_title="LogicForge: AI Architect",
+    page_icon="🚀",
     layout="wide"
 )
 
@@ -16,40 +16,28 @@ try:
 except (FileNotFoundError, KeyError):
     pass 
 
-# --- 3. THE NEW "ADAPTIVE" BRAIN ---
+# --- 3. THE BRAIN (ADAPTIVE LOGIC) ---
 SYSTEM_LOGIC = """
 [ROLE]
-You are an Expert Streamlit Developer. Your goal is to build the *perfect* app for the user's specific request.
+You are an Expert Streamlit Developer. Build the *perfect* app for the user's request.
 
-[ADAPTIVE ARCHITECTURE RULES - READ CAREFULLY]
-1. **Analyze the Request**: 
-   - IF the user asks for a simple tool (e.g., "calculator", "CSV viewer", "basic dashboard"), build a **Standalone Streamlit App**. DO NOT use Supabase, Auth, or XP unless explicitly asked.
-   - IF the user asks for a complex app (e.g., "user login", "save data", "study buddy", "tracker"), THEN use the **PWA Stack** (Supabase + Gamification).
-
-2. **Technology Stack (Conditional)**:
-   - **Simple Apps**: Use `streamlit`, `pandas`, `numpy`. Use `st.session_state` for temporary data.
-   - **Complex Apps**: Use `streamlit`, `supabase` (for auth/db), `groq` (for AI features).
-
-3. **Coding Standards (Always Apply)**:
-   - Use `st.set_page_config` at the very top.
-   - Use modular functions (e.g., `def calculate():`, `def show_graph():`).
-   - Use `st.secrets` for API keys if external services are used.
-   - Always include error handling (try/except blocks).
+[ADAPTIVE ARCHITECTURE RULES]
+1. **Analyze Request**: 
+   - Simple (calc, converter) -> Standalone Streamlit (No DB).
+   - Complex (login, history, study buddy) -> PWA Stack (Supabase + Gamification).
+2. **Stack**: Streamlit, Supabase (if needed), Groq (if AI needed).
+3. **Standards**: Modular functions, Error handling, st.secrets.
 
 [OUTPUT FORMAT]
-You must provide the response in THREE distinct sections:
-
 ---
 ### SECTION 1: THE CODE
-(Provide the FULL Python code here. Ensure it runs immediately.)
-
+(Full Python code block)
 ---
 ### SECTION 2: EXPLANATION
-(Briefly explain what the code does.)
-
+(Brief breakdown)
 ---
-### SECTION 3: SETUP INSTRUCTIONS
-(Tell the user what libraries to install in `requirements.txt`. IF you used Supabase/API keys, tell them exactly what to put in `.streamlit/secrets.toml`. If not, just say "No secrets needed.")
+### SECTION 3: SETUP
+(requirements.txt content & secrets.toml guide)
 """
 
 # --- 4. HELPER: IMAGE ENCODER ---
@@ -59,8 +47,8 @@ def encode_image(uploaded_file):
     return None
 
 # --- 5. APP INTERFACE ---
-st.title("🧠 Groq Architect (Smart & Adaptive)")
-st.markdown("Builds exactly what you ask for—simple scripts or complex PWAs.")
+st.title("🚀 LogicForge: The AI App Architect")
+st.caption("Build. Debug. Document. All in one.")
 
 with st.sidebar:
     st.header("⚙️ Settings")
@@ -69,98 +57,100 @@ with st.sidebar:
     else:
         st.success("API Key Connected ✅")
     
-    # Model Selector
     model = st.selectbox("Select Model", [
-        "llama-3.3-70b-versatile",      # Smartest (Text/Code)
-        "llama-3.2-11b-vision-preview", # Vision (Images)
+        "llama-3.3-70b-versatile",      # Best Logic
+        "llama-3.2-11b-vision-preview", # Best Vision
     ], index=0)
 
 if not api_key:
-    st.warning("⚠️ Enter key to proceed")
+    st.warning("⚠️ Enter Groq API Key to start.")
     st.stop()
 
 client = Groq(api_key=api_key)
 
-tab_build, tab_debug = st.tabs(["🏗️ Build App", "🔧 Debugger"])
+# --- TABS FOR WORKFLOW ---
+tab_build, tab_debug, tab_docs = st.tabs(["🏗️ Build App", "🔧 Debugger", "📄 Write Docs"])
 
 # === TAB 1: BUILDER ===
 with tab_build:
     col1, col2 = st.columns([3, 1])
-    
     with col1:
-        user_requirement = st.text_area("App Description:", height=150, placeholder="E.g., 'Make a simple BMI calculator' OR 'Make a full study app with login'")
-        uploaded_sketch = st.file_uploader("Upload UI Sketch (Optional)", type=["png", "jpg", "jpeg"])
-    
+        user_requirement = st.text_area("App Idea:", height=150, placeholder="E.g. A Student Portal with Login and Grades")
+        uploaded_sketch = st.file_uploader("Upload UI Sketch (Optional)", type=["png", "jpg"], key="build_img")
     with col2:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        generate_btn = st.button("🚀 Build It", type="primary", use_container_width=True)
+        generate_btn = st.button("🚀 Build Code", type="primary", use_container_width=True)
 
     if generate_btn and (user_requirement or uploaded_sketch):
-        with st.spinner("Analyzing complexity and architecting code..."):
+        with st.spinner("Architecting Solution..."):
             try:
                 messages = [{"role": "system", "content": SYSTEM_LOGIC}]
-                
-                user_content = []
-                if user_requirement:
-                    user_content.append({"type": "text", "text": f"Task: {user_requirement}"})
-                
+                content = []
+                if user_requirement: content.append({"type": "text", "text": f"Task: {user_requirement}"})
                 if uploaded_sketch:
-                    base64_image = encode_image(uploaded_sketch)
-                    user_content.append({
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                    })
+                    img = encode_image(uploaded_sketch)
+                    content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}})
                 
-                messages.append({"role": "user", "content": user_content})
-
-                completion = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=0.1,
-                    max_tokens=7000
-                )
+                messages.append({"role": "user", "content": content})
                 
-                full_response = completion.choices[0].message.content
+                resp = client.chat.completions.create(model=model, messages=messages, temperature=0.1, max_tokens=7000)
+                full_res = resp.choices[0].message.content
                 
-                # --- PARSE RESPONSE ---
-                if "```python" in full_response:
-                    parts = full_response.split("```python")
-                    code_part = parts[1].split("```")[0]
-                    # Everything after the code block is explanation
-                    explanation_part = parts[1].split("```")[1]
-                    
-                    st.success("✨ Code Generated!")
-                    st.code(code_part, language='python')
-                    st.download_button("📥 Download .py", code_part, "generated_app.py", "text/x-python")
-                    
-                    st.markdown("---")
-                    st.subheader("📚 Explanation & Setup")
-                    st.markdown(explanation_part)
+                if "```python" in full_res:
+                    parts = full_res.split("```python")
+                    code = parts[1].split("```")[0]
+                    explanation = parts[1].split("```")[1]
+                    st.code(code, language='python')
+                    st.markdown(explanation)
                 else:
-                    st.markdown(full_response)
-                
+                    st.markdown(full_res)
             except Exception as e:
                 st.error(f"Error: {e}")
 
 # === TAB 2: DEBUGGER ===
 with tab_debug:
-    st.info("Paste any error here, and I will fix it.")
-    user_query = st.chat_input("Paste error message...")
-    
-    if user_query:
-        with st.chat_message("user"):
-            st.write(user_query)
-            
+    st.info("Paste errors here. I'll fix them instantly.")
+    err_input = st.chat_input("Paste error message...")
+    if err_input:
+        with st.chat_message("user"): st.write(err_input)
         with st.chat_message("assistant"):
             with st.spinner("Fixing..."):
-                try:
-                    debug_response = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[
-                            {"role": "system", "content": "You are a Python Debugger. Fix the code or explain the error concisely."},
-                            {"role": "user", "content": user_query}
-                        ]
-                    )
-                    st.write(debug_response.choices[0].message.content)
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": "You are a Python Debugger. Provide the FIXED code block only."},
+                        {"role": "user", "content": err_input}
+                    ]
+                )
+                st.markdown(res.choices[0].message.content)
+
+# === TAB 3: DOCS GENERATOR (NEW) ===
+with tab_docs:
+    st.markdown("### 📝 Generate README & Reports")
+    st.info("Perfect for project submissions. Generates professional documentation for your app.")
+    
+    app_name = st.text_input("App Name", placeholder="e.g. Study Buddy")
+    app_desc = st.text_area("What does the app do?", placeholder="Briefly describe features...", height=100)
+    
+    if st.button("📄 Generate Documentation"):
+        if app_desc:
+            with st.spinner("Writing Documentation..."):
+                prompt = f"""
+                Create a professional GitHub README.md for an app named '{app_name}'.
+                Description: {app_desc}
+                Tech Stack: Python, Streamlit, Supabase, Groq AI.
+                Include:
+                1. Project Title & Emoji
+                2. Key Features (Bullet points)
+                3. Installation Guide (pip install...)
+                4. How to Run (streamlit run app.py)
+                5. A 'Project Report' section suitable for college submission.
+                """
+                
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                st.markdown(res.choices[0].message.content)
+        else:
+            st.warning("Please describe the app first.")
