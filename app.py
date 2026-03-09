@@ -294,7 +294,8 @@ label, p { color: var(--text) !important; }
 #lf-drawer-trigger {
     position: fixed;
     top: 12px;
-    left: 12px;
+    right: 14px;
+    left: auto;
     z-index: 999999;
     width: 44px;
     height: 44px;
@@ -391,7 +392,7 @@ label, p { color: var(--text) !important; }
 
     /* Header: indent to avoid overlap with 3-dot button */
     .lf-header {
-        padding: 14px 16px 14px 66px !important;
+        padding: 14px 60px 14px 16px !important;
         gap: 8px !important;
     }
     .lf-header h1 { font-size: 18px !important; }
