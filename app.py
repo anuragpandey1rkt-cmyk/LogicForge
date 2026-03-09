@@ -12,11 +12,11 @@ st.set_page_config(
     page_title="LogicForge AI",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="auto",
 )
 
 # ══════════════════════════════════════════════
-# 2. CSS  — high-contrast light theme, mobile-ready
+# 2. CSS
 # ══════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -277,110 +277,210 @@ label, p { color: var(--text) !important; }
 }
 .hist-meta { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
 
-/* ═══════════════════════════════════════════════════
-   SIDEBAR TOGGLE — styled as purple 3-dot button
-   Works on BOTH mobile and desktop via native Streamlit
-   ═══════════════════════════════════════════════════ */
-
-/* Always show and style the collapsed sidebar button */
-[data-testid="collapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    top: 14px !important;
-    left: 14px !important;
-    z-index: 999999 !important;
-    width: 44px !important;
-    height: 44px !important;
+/* ═══════════════════════════════════════════
+   DESKTOP SIDEBAR TOGGLE BUTTON
+   ═══════════════════════════════════════════ */
+#lf-sidebar-btn {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 99999;
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border-radius: 10px;
+    cursor: pointer;
+    display: none; /* shown via desktop media query */
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.4);
+    transition: background 0.18s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    text-decoration: none;
+    border: none;
+}
+#lf-sidebar-btn:hover { background: var(--accent-h); transform: scale(1.06); }
+#lf-sidebar-btn .bar {
+    display: block;
+    width: 18px; height: 2px;
+    background: #fff;
+    border-radius: 2px;
 }
 
-[data-testid="collapsedControl"] button {
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    background: var(--accent) !important;
-    border: none !important;
-    border-radius: 11px !important;
-    cursor: pointer !important;
-    box-shadow: 0 4px 14px rgba(79,70,229,0.4) !important;
-    transition: background 0.18s ease, transform 0.15s ease !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 0 !important;
-    color: white !important;
-    font-size: 22px !important;
-    font-weight: 900 !important;
-    letter-spacing: 1px !important;
-    line-height: 1 !important;
+/* ═══════════════════════════════════════════
+   PURE CSS CHECKBOX DRAWER — mobile
+   ═══════════════════════════════════════════ */
+#lf-drawer-toggle {
+    position: fixed;
+    opacity: 0;
+    width: 0; height: 0;
+    pointer-events: none;
 }
 
-[data-testid="collapsedControl"] button:hover {
-    background: var(--accent-h) !important;
-    transform: scale(1.06) !important;
-    box-shadow: 0 6px 20px rgba(79,70,229,0.55) !important;
+#lf-drawer-trigger {
+    position: fixed;
+    top: 12px;
+    right: 14px;
+    left: auto;
+    z-index: 999999;
+    width: 44px;
+    height: 44px;
+    background: var(--accent);
+    border-radius: 11px;
+    cursor: pointer;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.45);
+    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+#lf-drawer-trigger:hover,
+#lf-drawer-trigger:active {
+    background: var(--accent-h);
+    transform: scale(1.07);
+    box-shadow: 0 6px 20px rgba(79,70,229,0.55);
+}
+#lf-drawer-trigger .dot {
+    display: block;
+    width: 5px; height: 5px;
+    background: #fff;
+    border-radius: 50%;
 }
 
-/* Hide the default SVG arrow — show ⋮ via font instead */
-[data-testid="collapsedControl"] button svg {
-    display: none !important;
+#lf-drawer-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,30,0.5);
+    z-index: 999997;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    cursor: pointer;
 }
 
-[data-testid="collapsedControl"] button::after {
-    content: '⋮';
-    color: white !important;
-    font-size: 22px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
+#lf-drawer-panel {
+    position: fixed;
+    top: 0; left: 0;
+    width: min(320px, 92vw);
+    height: 100vh;
+    background: var(--surface);
+    border-right: 2px solid var(--border);
+    box-shadow: 6px 0 32px rgba(79,70,229,0.18);
+    z-index: 999998;
+    transform: translateX(-105%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 16px 32px;
+    box-sizing: border-box;
 }
 
-/* Also style the expand arrow inside open sidebar (the >> close button) */
-[data-testid="stSidebarCollapseButton"] button {
-    color: var(--accent) !important;
+#lf-drawer-close {
+    position: absolute;
+    top: 14px; right: 14px;
+    width: 30px; height: 30px;
+    background: var(--accent-lt);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
+}
+#lf-drawer-close:hover { background: var(--accent); color: #fff; }
+
+#lf-drawer-toggle:checked ~ #lf-drawer-backdrop { display: block; }
+#lf-drawer-toggle:checked ~ #lf-drawer-panel    { transform: translateX(0); }
+
+/* Custom select styles for drawer */
+.drawer-select {
+    width: 100%;
+    padding: 9px 12px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234f46e5' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+.drawer-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+}
+.drawer-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    margin-bottom: 5px;
+    display: block;
 }
 
-/* ── Sidebar itself — keep native Streamlit sidebar fully working ── */
-[data-testid="stSidebar"] {
-    background: var(--surface) !important;
-    border-right: 1px solid var(--border) !important;
-}
-
-/* ── Mobile adjustments ── */
+/* ═══════════════════════════════════════════
+   MOBILE BREAKPOINT
+   ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
-    /* Sidebar takes up reasonable width on mobile */
-    [data-testid="stSidebar"] {
-        width: min(300px, 88vw) !important;
-        min-width: min(300px, 88vw) !important;
-    }
+    [data-testid="stSidebar"]        { display: none !important; }
+    [data-testid="collapsedControl"] { display: none !important; }
+    section[data-testid="stSidebarContent"] { display: none !important; }
 
-    /* Header indent so content clears the 3-dot button */
+    #lf-drawer-trigger { display: flex !important; }
+    #lf-sidebar-btn    { display: none !important; }
+
     .lf-header {
-        padding: 14px 16px 14px 68px !important;
+        padding: 14px 60px 14px 16px !important;
         gap: 8px !important;
     }
     .lf-header h1 { font-size: 18px !important; }
     .lf-badge { font-size: 10px !important; padding: 3px 9px !important; }
 
-    /* Compact tabs */
     .stTabs [data-baseweb="tab-list"] { gap: 2px !important; }
     .stTabs [data-baseweb="tab"] {
         font-size: 11px !important;
         padding: 7px 9px !important;
     }
 
-    /* Buttons */
-    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; }
+    .stButton > button {
+        font-size: 13px !important;
+        padding: 9px 14px !important;
+    }
     .stDownloadButton > button { font-size: 13px !important; }
-
-    /* Misc */
     [data-testid="stChatInput"] textarea { font-size: 14px !important; }
     [data-testid="stMetric"] { padding: 10px 12px !important; }
     .sec-title { font-size: 16px; }
     .empty-state { padding: 28px 16px; }
 }
 
-/* Extra small phones */
+/* ── Desktop: show sidebar toggle btn, hide mobile drawer ── */
+@media (min-width: 769px) {
+    #lf-drawer-trigger   { display: none !important; }
+    #lf-drawer-backdrop  { display: none !important; }
+    #lf-drawer-panel     { display: none !important; }
+    #lf-drawer-toggle    { display: none !important; }
+    #lf-sidebar-btn      { display: flex !important; }
+}
+
 @media (max-width: 420px) {
     .lf-header h1 { font-size: 15px !important; }
     .stTabs [data-baseweb="tab"] { font-size: 10px !important; padding: 6px 7px !important; }
@@ -410,6 +510,8 @@ _defaults: dict = {
     "test_code":           "",
     "doc_result":          "",
     "groq_api_key":        "",
+    "mobile_model":        "llama-3.3-70b-versatile",
+    "mobile_framework":    "Streamlit",
 }
 for _k, _v in _defaults.items():
     if _k not in st.session_state:
@@ -429,13 +531,20 @@ if not api_key and st.session_state.groq_api_key:
 # ══════════════════════════════════════════════
 # 5. SIDEBAR
 # ══════════════════════════════════════════════
+MODEL_MAP = {
+    "llama-3.3-70b-versatile":       "🧠 Llama 3.3 70B — Best quality",
+    "llama-3.1-8b-instant":          "⚡ Llama 3.1 8B — Fastest",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick — Latest",
+}
+FRAMEWORKS = ["Streamlit", "FastAPI", "Flask", "Django", "Pure Python", "CLI Tool"]
+
 with st.sidebar:
     st.markdown("## ⚡ LogicForge")
     st.caption("AI Code Architect · v2.0")
     st.divider()
 
     if not api_key:
-        st.markdown("### 🔑 AI API Key")
+        st.markdown("### 🔑 API Key")
         entered = st.text_input("API Key", type="password",
                                 placeholder="Enter your API key…",
                                 help="Paste your API key to unlock all features",
@@ -449,15 +558,9 @@ with st.sidebar:
         st.divider()
 
     st.markdown("### ⚙️ Settings")
-    MODEL_MAP = {
-        "llama-3.3-70b-versatile":       "🧠 Llama 3.3 70B — Best quality",
-        "llama-3.1-8b-instant":          "⚡ Llama 3.1 8B — Fastest",
-        "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick — Latest",
-    }
     model = st.selectbox("Model", list(MODEL_MAP.keys()),
                          format_func=lambda x: MODEL_MAP[x], index=0)
-    framework = st.selectbox("Framework",
-                             ["Streamlit", "FastAPI", "Flask", "Django", "Pure Python", "CLI Tool"])
+    framework = st.selectbox("Framework", FRAMEWORKS)
     temperature = st.slider("Temperature", 0.0, 1.0, 0.1, 0.05,
                             help="Lower = precise. Higher = creative.")
     max_tokens = st.select_slider("Max Tokens",
@@ -497,7 +600,6 @@ def call_groq(messages: list, max_tok: int | None = None, temp: float | None = N
 
 
 def parse_code(text: str) -> tuple[str, str]:
-    """Returns (code, rest). Tries ```python first, then any ```."""
     m = re.search(r"```python\s*(.*?)```", text, re.DOTALL)
     if not m:
         m = re.search(r"```\s*([\s\S]*?)```", text)
@@ -594,6 +696,112 @@ st.markdown("""
 
 if not api_key:
     st.warning("⚠️ **No API key detected.** Please enter your API key in the sidebar to use all features.")
+
+# ── Desktop sidebar toggle button (hamburger) ──
+st.markdown("""
+<a id="lf-sidebar-btn" title="Toggle Sidebar" onclick="
+  var s = window.parent.document.querySelector('[data-testid=stSidebar]');
+  var c = window.parent.document.querySelector('[data-testid=collapsedControl]');
+  if(s){ s.style.display = s.style.display === 'none' ? '' : 'none'; }
+  if(c){ c.click(); }
+" href="javascript:void(0)">
+  <span class='bar'></span>
+  <span class='bar'></span>
+  <span class='bar'></span>
+</a>
+""", unsafe_allow_html=True)
+
+# ── Mobile drawer ──
+_model_labels = {
+    "llama-3.3-70b-versatile":                    "🧠 Llama 3.3 70B — Best quality",
+    "llama-3.1-8b-instant":                       "⚡ Llama 3.1 8B — Fastest",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick — Latest",
+}
+_key_status  = "✅ API key active" if api_key else "⚠️ No API key set"
+_key_color   = "#059669" if api_key else "#d97706"
+_key_bg      = "#ecfdf5" if api_key else "#fffbeb"
+_key_border  = "#a7f3d0" if api_key else "#fde68a"
+_builds      = st.session_state.total_builds
+_tok         = st.session_state.total_tokens
+_tok_str     = f"{_tok/1000:.1f}k" if _tok >= 1000 else str(_tok)
+
+# Build model options HTML
+_model_opts = ""
+for _mk, _mv in _model_labels.items():
+    _sel = "selected" if _mk == st.session_state.mobile_model else ""
+    _model_opts += f'<option value="{_mk}" {_sel}>{_mv}</option>\n'
+
+# Build framework options HTML
+_fw_opts = ""
+for _fw in FRAMEWORKS:
+    _sel = "selected" if _fw == st.session_state.mobile_framework else ""
+    _fw_opts += f'<option value="{_fw}" {_sel}>{_fw}</option>\n'
+
+st.markdown(f"""
+<input type="checkbox" id="lf-drawer-toggle">
+
+<label for="lf-drawer-toggle" id="lf-drawer-trigger" title="Settings">
+  <span class="dot"></span>
+  <span class="dot"></span>
+  <span class="dot"></span>
+</label>
+
+<label for="lf-drawer-toggle" id="lf-drawer-backdrop"></label>
+
+<div id="lf-drawer-panel">
+  <label for="lf-drawer-toggle" id="lf-drawer-close" title="Close">✕</label>
+
+  <div style="margin:0 0 16px 0;padding-right:40px">
+    <div style="font-size:21px;font-weight:800;color:#4f46e5">⚡ LogicForge</div>
+    <div style="font-size:12px;color:#94a3b8;margin-top:2px">AI Code Architect · v2.0</div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid #d1d9f0;margin:0 0 14px">
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🔑 API Status</div>
+  <div style="background:{_key_bg};border:1px solid {_key_border};border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;color:{_key_color};margin-bottom:16px">
+    {_key_status}
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">🤖 Model</div>
+  <select class="drawer-select" id="mobile-model-select" onchange="
+    var v = this.value;
+    window._lf_model = v;
+    document.getElementById('lf-model-hint').textContent = '⚠️ Reload page to apply model change.';
+    document.getElementById('lf-model-hint').style.display = 'block';
+  ">
+    {_model_opts}
+  </select>
+  <div id="lf-model-hint" style="display:none;font-size:11px;color:#d97706;margin-bottom:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;"></div>
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">🔧 Framework</div>
+  <select class="drawer-select" id="mobile-fw-select" onchange="
+    var v = this.value;
+    window._lf_fw = v;
+    document.getElementById('lf-fw-hint').textContent = '⚠️ Reload page to apply framework change.';
+    document.getElementById('lf-fw-hint').style.display = 'block';
+  ">
+    {_fw_opts}
+  </select>
+  <div id="lf-fw-hint" style="display:none;font-size:11px;color:#d97706;margin-bottom:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;"></div>
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;margin-top:4px">📊 Session Stats</div>
+  <div style="display:flex;gap:10px;margin-bottom:16px">
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_builds}</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Builds</div>
+    </div>
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_tok_str}</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Tokens</div>
+    </div>
+  </div>
+
+  <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b;line-height:1.6;text-align:center">
+    💡 For full settings (temperature, max tokens), use the <strong>sidebar</strong> on desktop
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 # 9. TABS
@@ -726,21 +934,22 @@ with tab_debug:
 
     dl, dr = st.columns([1, 1], gap="large")
     with dl:
+        buggy = st.text_area("Paste buggy code", height=200,
+            placeholder="def greet(name):\n    print('Hello ' + naam)  # NameError!")
+        tb = st.text_area("Error / Traceback (optional)", height=90,
+            placeholder="NameError: name 'naam' is not defined")
+
         col_d1, col_d2 = st.columns(2)
         debug_btn = col_d1.button("🔍 Fix My Code", type="primary", use_container_width=True)
         if col_d2.button("📥 Load from Builder", use_container_width=True, key="dbg_load"):
             if st.session_state.active_code:
-                st.session_state["dbg_code_val"] = st.session_state.active_code
+                st.session_state["_dbg_pre"] = st.session_state.active_code
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
 
-        buggy = st.text_area("Paste buggy code", height=200,
-            value=st.session_state.get("dbg_code_val", ""),
-            placeholder="def greet(name):\n    print('Hello ' + naam)  # NameError!",
-            key="dbg_code_area")
-        tb = st.text_area("Error / Traceback (optional)", height=90,
-            placeholder="NameError: name 'naam' is not defined")
+        if "_dbg_pre" in st.session_state:
+            buggy = st.session_state.pop("_dbg_pre")
 
     with dr:
         if st.session_state.debug_code:
@@ -793,23 +1002,24 @@ with tab_refactor:
 
     rl, rr = st.columns([1, 1], gap="large")
     with rl:
-        rc1, rc2 = st.columns(2)
-        ref_btn = rc1.button("♻️ Refactor Code", type="primary", use_container_width=True)
-        if rc2.button("📥 Load from Builder", use_container_width=True, key="ref_load"):
-            if st.session_state.active_code:
-                st.session_state["ref_code_val"] = st.session_state.active_code
-                st.rerun()
-            else:
-                st.warning("No active code in Builder yet.")
-
         raw_code = st.text_area("Paste code to refactor", height=200,
-            value=st.session_state.get("ref_code_val", ""),
-            placeholder="x=1\ndef f(a,b):\n  return a+b",
-            key="ref_code_area")
+            placeholder="x=1\ndef f(a,b):\n  return a+b")
         goals = st.multiselect("Refactoring goals",
             ["PEP 8 compliance", "Type hints", "Docstrings",
              "Performance", "DRY principle", "Error handling", "Add logging"],
             default=["PEP 8 compliance", "Type hints", "Docstrings"])
+
+        rc1, rc2 = st.columns(2)
+        ref_btn = rc1.button("♻️ Refactor Code", type="primary", use_container_width=True)
+        if rc2.button("📥 Load from Builder", use_container_width=True, key="ref_load"):
+            if st.session_state.active_code:
+                st.session_state["_ref_pre"] = st.session_state.active_code
+                st.rerun()
+            else:
+                st.warning("No active code in Builder yet.")
+
+        if "_ref_pre" in st.session_state:
+            raw_code = st.session_state.pop("_ref_pre")
 
     with rr:
         if st.session_state.refactor_code:
@@ -860,20 +1070,21 @@ with tab_tests:
 
     tl, tr = st.columns([1, 1], gap="large")
     with tl:
+        test_src = st.text_area("Paste code to test", height=200,
+            placeholder="def add(a: int, b: int) -> int:\n    return a + b")
+        test_style = st.radio("Test framework", ["pytest", "unittest"], horizontal=True)
+
         tc1, tc2 = st.columns(2)
         test_btn = tc1.button("🧪 Generate Tests", type="primary", use_container_width=True)
         if tc2.button("📥 Load from Builder", use_container_width=True, key="tst_load"):
             if st.session_state.active_code:
-                st.session_state["tst_code_val"] = st.session_state.active_code
+                st.session_state["_tst_pre"] = st.session_state.active_code
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
 
-        test_src = st.text_area("Paste code to test", height=200,
-            value=st.session_state.get("tst_code_val", ""),
-            placeholder="def add(a: int, b: int) -> int:\n    return a + b",
-            key="tst_code_area")
-        test_style = st.radio("Test framework", ["pytest", "unittest"], horizontal=True)
+        if "_tst_pre" in st.session_state:
+            test_src = st.session_state.pop("_tst_pre")
 
     with tr:
         if st.session_state.test_code:
@@ -923,10 +1134,8 @@ with tab_chat:
     st.markdown('<div class="sec-title">💬 Senior Dev Chat</div>', unsafe_allow_html=True)
     st.markdown('<div class="sec-sub">Ask anything — code reviews, architecture, debugging, best practices.</div>', unsafe_allow_html=True)
 
-    # Quick action buttons
     qa1, qa2, qa3, qa4 = st.columns(4)
     def _chat_send(user_msg: str):
-        """Append user message and immediately get AI reply."""
         if not api_key:
             st.error("Add your API key in the sidebar.")
             return
@@ -957,24 +1166,10 @@ with tab_chat:
         else:
             st.warning("Generate code in Builder first.")
 
-    # Render chat
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Handle quick-action replies (when history was appended and rerun happened)
-    last = st.session_state.chat_history[-1] if st.session_state.chat_history else None
-    if last and last["role"] == "user" and api_key:
-        # Auto-reply to quick actions
-        needs_reply = len(st.session_state.chat_history) >= 2 and \
-                      st.session_state.chat_history[-2]["role"] != "assistant" or \
-                      st.session_state.chat_history[-1]["role"] == "user" and \
-                      (len(st.session_state.chat_history) == 1 or
-                       st.session_state.chat_history[-2]["role"] == "user")
-        # Simpler check: if last message is from user and no response yet
-        # We just rely on chat_input to trigger responses
-
-    # Chat input
     if user_input := st.chat_input("Ask anything… paste code or an error…"):
         if not api_key:
             st.error("Add your API key in the sidebar.")
@@ -995,8 +1190,6 @@ with tab_chat:
                     except Exception as e:
                         st.error(f"Chat error: {e}")
 
-
-
     if len(st.session_state.chat_history) > 1:
         if st.button("🗑️ Clear chat", use_container_width=False):
             st.session_state.chat_history = [{"role": "assistant", "content": "Chat cleared. Ask me anything!"}]
@@ -1014,22 +1207,23 @@ with tab_docs:
         doc_name = st.text_input("Project name", placeholder="e.g. DataViz Pro")
         doc_desc = st.text_area("Project description", height=110,
             placeholder="Describe the app, features, and tech stack.")
+        doc_code = st.text_area("Source code (optional)", height=90,
+            placeholder="Paste source code for more accurate docs…")
+        doc_types = st.multiselect("What to generate",
+            ["GitHub README", "API Reference", "Developer Guide", "User Manual", "Changelog Template"],
+            default=["GitHub README"])
+
         docb1, docb2 = st.columns(2)
         doc_btn = docb1.button("📄 Generate Docs", type="primary", use_container_width=True)
         if docb2.button("📥 Load code from Builder", use_container_width=True, key="doc_load"):
             if st.session_state.active_code:
-                st.session_state["doc_code_val"] = st.session_state.active_code
+                st.session_state["_doc_pre"] = st.session_state.active_code
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
 
-        doc_code = st.text_area("Source code (optional)", height=90,
-            value=st.session_state.get("doc_code_val", ""),
-            placeholder="Paste source code for more accurate docs…",
-            key="doc_code_area")
-        doc_types = st.multiselect("What to generate",
-            ["GitHub README", "API Reference", "Developer Guide", "User Manual", "Changelog Template"],
-            default=["GitHub README"])
+        if "_doc_pre" in st.session_state:
+            doc_code = st.session_state.pop("_doc_pre")
 
     with dor:
         if st.session_state.doc_result:
