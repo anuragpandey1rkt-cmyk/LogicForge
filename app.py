@@ -277,70 +277,114 @@ label, p { color: var(--text) !important; }
 }
 .hist-meta { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
 
-/* ── Mobile responsive ── */
+/* ── Floating 3-dot menu button (always visible) ── */
+#lf-menu-btn {
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 99999;
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-shadow: 0 3px 12px rgba(79,70,229,0.4);
+    transition: background 0.2s, transform 0.15s;
+}
+#lf-menu-btn:hover { background: var(--accent-h); transform: scale(1.05); }
+#lf-menu-btn span {
+    display: block;
+    width: 5px; height: 5px;
+    background: white;
+    border-radius: 50%;
+}
+
+/* Sidebar overlay panel */
+#lf-sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15,15,30,0.45);
+    z-index: 99997;
+    backdrop-filter: blur(2px);
+}
+#lf-sidebar-overlay.open { display: block; }
+
+#lf-sidebar-panel {
+    position: fixed;
+    top: 0; left: 0;
+    width: min(320px, 90vw);
+    height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    box-shadow: 4px 0 24px rgba(79,70,229,0.15);
+    z-index: 99998;
+    transform: translateX(-110%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto;
+    padding: 16px;
+}
+#lf-sidebar-panel.open { transform: translateX(0); }
+
+#lf-sidebar-close {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: var(--accent-lt);
+    border: none;
+    border-radius: 8px;
+    width: 32px; height: 32px;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+}
+#lf-sidebar-close:hover { background: var(--accent); color: white; }
+
+/* Hide native Streamlit sidebar on mobile, show our custom one */
 @media (max-width: 768px) {
+    [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="collapsedControl"] { display: none !important; }
+    #lf-menu-btn { display: flex !important; }
+
     /* Header */
-    .lf-header { padding: 14px 16px; gap: 8px; }
-    .lf-header h1 { font-size: 20px !important; }
-    .lf-badge { font-size: 10px !important; padding: 3px 10px !important; }
+    .lf-header { padding: 14px 16px; gap: 8px; padding-left: 68px; }
+    .lf-header h1 { font-size: 19px !important; }
+    .lf-badge { font-size: 10px; padding: 3px 10px; }
 
-    /* Sidebar toggle button — make it visible and well-sized */
-    [data-testid="collapsedControl"],
-    button[kind="header"] {
-        display: flex !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-        background: var(--accent) !important;
-        color: white !important;
-        border-radius: 8px !important;
-        padding: 6px !important;
-        width: 36px !important;
-        height: 36px !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 2px 8px rgba(79,70,229,0.3) !important;
-        z-index: 999 !important;
-    }
-    [data-testid="collapsedControl"] svg { color: white !important; fill: white !important; }
-
-    /* Sidebar full width on mobile */
-    [data-testid="stSidebar"] {
-        width: 100% !important;
-        min-width: 100% !important;
-        max-width: 100% !important;
-    }
-
-    /* Tabs wrap cleanly */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] { gap: 2px !important; }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 11px !important;
-        padding: 7px 9px !important;
-        min-width: 0 !important;
-    }
+    .stTabs [data-baseweb="tab"] { font-size: 11px !important; padding: 7px 9px !important; }
 
     /* Buttons */
-    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; width: 100% !important; }
-    .stDownloadButton > button { font-size: 13px !important; width: 100% !important; }
-
-    /* Stack columns on mobile */
-    [data-testid="column"] { min-width: 100% !important; width: 100% !important; }
+    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; }
+    .stDownloadButton > button { font-size: 13px !important; }
 
     /* Chat input */
     [data-testid="stChatInput"] textarea { font-size: 14px !important; }
 
-    /* Empty states padding */
-    .empty-state { padding: 28px 16px; }
-
-    /* Metric cards */
+    /* Metrics */
     [data-testid="stMetric"] { padding: 10px 12px !important; }
-
-    /* Section titles */
     .sec-title { font-size: 16px; }
+    .empty-state { padding: 28px 16px; }
+}
+
+/* On desktop: hide the floating button */
+@media (min-width: 769px) {
+    #lf-menu-btn { display: none !important; }
+    #lf-sidebar-overlay { display: none !important; }
+    #lf-sidebar-panel { display: none !important; }
 }
 
 /* Small phones */
 @media (max-width: 480px) {
-    .lf-header h1 { font-size: 17px !important; }
+    .lf-header h1 { font-size: 16px !important; }
     .stTabs [data-baseweb="tab"] { font-size: 10px !important; padding: 6px 7px !important; }
 }
 
@@ -407,10 +451,9 @@ with st.sidebar:
 
     st.markdown("### ⚙️ Settings")
     MODEL_MAP = {
-        "llama-3.3-70b-versatile":                    "🧠 Llama 3.3 70B — Best quality",
-        "llama-3.1-8b-instant":                       "⚡ Llama 3.1 8B — Fastest",
-        "meta-llama/llama-4-scout-17b-16e-instruct":  "🦙 Llama 4 Scout 17B — Latest",
-        "qwen/qwen-3-32b":                            "💎 Qwen 3 32B — Reasoning",
+        "llama-3.3-70b-versatile":       "🧠 Llama 3.3 70B — Best quality",
+        "llama-3.1-8b-instant":          "⚡ Llama 3.1 8B — Fastest",
+        "deepseek-r1-distill-llama-70b": "🔍 DeepSeek R1 70B — Reasoning",
     }
     model = st.selectbox("Model", list(MODEL_MAP.keys()),
                          format_func=lambda x: MODEL_MAP[x], index=0)
@@ -552,6 +595,87 @@ st.markdown("""
 
 if not api_key:
     st.warning("⚠️ **No API key detected.** Please enter your API key in the sidebar to use all features.")
+
+# ── Floating 3-dot button + custom mobile sidebar panel ──
+# Build sidebar panel content as HTML so it mirrors the native sidebar on mobile
+_model_labels = {
+    "llama-3.3-70b-versatile":       "🧠 Llama 3.3 70B",
+    "llama-3.1-8b-instant":          "⚡ Llama 3.1 8B",
+    "deepseek-r1-distill-llama-70b": "🔍 DeepSeek R1 70B",
+}
+_model_name = _model_labels.get(model, model)
+_key_status = "✅ API key active" if api_key else "⚠️ No API key — enter below"
+_builds = st.session_state.total_builds
+_tokens_val = st.session_state.total_tokens
+_tokens_str = f"{_tokens_val/1000:.1f}k" if _tokens_val >= 1000 else str(_tokens_val)
+
+st.markdown(f"""
+<!-- Floating 3-dot menu button (always visible on mobile) -->
+<button id="lf-menu-btn" aria-label="Open settings" title="Settings">
+  <span></span><span></span><span></span>
+</button>
+
+<!-- Overlay backdrop -->
+<div id="lf-sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- Custom sidebar panel -->
+<div id="lf-sidebar-panel">
+  <button id="lf-sidebar-close" onclick="closeSidebar()" title="Close">✕</button>
+
+  <div style="margin-bottom:16px">
+    <div style="font-size:20px;font-weight:800;color:#4f46e5;margin-bottom:2px">⚡ LogicForge</div>
+    <div style="font-size:12px;color:#94a3b8">AI Code Architect · v2.0</div>
+  </div>
+  <hr style="border-color:#d1d9f0;margin:12px 0">
+
+  <div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:6px">🔑 API Key Status</div>
+  <div style="background:{'#ecfdf5' if api_key else '#fffbeb'};border:1px solid {'#a7f3d0' if api_key else '#fde68a'};border-radius:8px;padding:8px 12px;font-size:13px;color:{'#059669' if api_key else '#d97706'};margin-bottom:12px">
+    {_key_status}
+  </div>
+
+  <div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:6px">⚙️ Current Settings</div>
+  <div style="background:#f8faff;border:1px solid #d1d9f0;border-radius:8px;padding:10px 12px;font-size:13px;color:#475569;line-height:1.8;margin-bottom:12px">
+    <div><strong>Model:</strong> {_model_name}</div>
+    <div><strong>Framework:</strong> {framework}</div>
+    <div><strong>Temperature:</strong> {temperature}</div>
+    <div><strong>Max Tokens:</strong> {max_tokens:,}</div>
+  </div>
+
+  <div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px">📊 Session Stats</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#4f46e5">{_builds}</div>
+      <div style="font-size:10px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px">Builds</div>
+    </div>
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:#4f46e5">{_tokens_str}</div>
+      <div style="font-size:10px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px">Tokens</div>
+    </div>
+  </div>
+
+  <div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:16px;line-height:1.5">
+    To change model, framework, or API key<br>use the sidebar on desktop view
+  </div>
+</div>
+
+<script>
+function openSidebar() {{
+  document.getElementById('lf-sidebar-panel').classList.add('open');
+  document.getElementById('lf-sidebar-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}}
+function closeSidebar() {{
+  document.getElementById('lf-sidebar-panel').classList.remove('open');
+  document.getElementById('lf-sidebar-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}}
+document.getElementById('lf-menu-btn').addEventListener('click', openSidebar);
+// Close on Escape key
+document.addEventListener('keydown', function(e) {{
+  if (e.key === 'Escape') closeSidebar();
+}});
+</script>
+""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 # 9. TABS
