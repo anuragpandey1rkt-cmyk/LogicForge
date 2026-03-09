@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="LogicForge AI",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="collapsed",
 )
 
 # ══════════════════════════════════════════════
@@ -282,16 +282,23 @@ label, p { color: var(--text) !important; }
    toggle into a permanent 3-dot button
    ═══════════════════════════════════════════ */
 
-/* Make the collapsed sidebar control always visible and styled */
-[data-testid="collapsedControl"] {
+/* ── Style Streamlit's sidebar toggle as a 3-dot button ── */
+/* Target all possible Streamlit sidebar toggle selectors */
+[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapsedControl"] {
     display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
+    position: fixed !important;
+    top: 12px !important;
+    right: 14px !important;
+    left: auto !important;
+    z-index: 999999 !important;
 }
 
-/* The actual button inside collapsedControl */
 [data-testid="collapsedControl"] button,
-[data-testid="collapsedControl"] > button {
+[data-testid="collapsedControl"] > button,
+[data-testid="stSidebarCollapsedControl"] button {
     background: var(--accent) !important;
     border: none !important;
     border-radius: 10px !important;
@@ -307,28 +314,26 @@ label, p { color: var(--text) !important; }
     position: relative !important;
     padding: 0 !important;
 }
-[data-testid="collapsedControl"] button:hover {
+[data-testid="collapsedControl"] button:hover,
+[data-testid="stSidebarCollapsedControl"] button:hover {
     background: var(--accent-h) !important;
-    transform: scale(1.07) !important;
+    transform: scale(1.06) !important;
 }
 
-/* Hide the default arrow icon, replace with 3 dots via pseudo-elements */
-[data-testid="collapsedControl"] button svg {
+/* Hide default arrow SVG — show 3 dots instead */
+[data-testid="collapsedControl"] button svg,
+[data-testid="stSidebarCollapsedControl"] button svg {
     display: none !important;
 }
 [data-testid="collapsedControl"] button::before,
-[data-testid="collapsedControl"] button::after,
-[data-testid="collapsedControl"] button span {
-    content: '';
-    display: block;
-    width: 5px; height: 5px;
-    background: #fff;
-    border-radius: 50%;
-    position: absolute;
+[data-testid="stSidebarCollapsedControl"] button::before {
+    content: '⋮';
+    color: #fff;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0;
 }
-[data-testid="collapsedControl"] button::before { top: 10px; left: 50%; transform: translateX(-50%); }
-[data-testid="collapsedControl"] button::after  { bottom: 10px; left: 50%; transform: translateX(-50%); }
-[data-testid="collapsedControl"] button span    { top: 50%; left: 50%; transform: translate(-50%,-50%); }
 
 /* ── Mobile breakpoint ── */
 @media (max-width: 768px) {
@@ -352,15 +357,6 @@ label, p { color: var(--text) !important; }
     }
     [data-testid="stSidebar"] h3 {
         font-size: 15px !important;
-    }
-
-    /* collapsedControl fixed top-right, always visible */
-    [data-testid="collapsedControl"] {
-        position: fixed !important;
-        top: 12px !important;
-        right: 14px !important;
-        left: auto !important;
-        z-index: 999999 !important;
     }
 
     /* Header: pad right so title doesn't go under button */
@@ -736,23 +732,22 @@ with tab_debug:
 
     dl, dr = st.columns([1, 1], gap="large")
     with dl:
+        if st.button("📥 Load from Builder", use_container_width=True, key="dbg_load"):
+            if st.session_state.active_code:
+                st.session_state["dbg_code_val"] = st.session_state.active_code
+                st.rerun()
+            else:
+                st.warning("No active code in Builder yet.")
+
         buggy = st.text_area("Paste buggy code", height=200,
-            placeholder="def greet(name):\n    print('Hello ' + naam)  # NameError!")
+            value=st.session_state.get("dbg_code_val", ""),
+            placeholder="def greet(name):\n    print('Hello ' + naam)  # NameError!",
+            key="dbg_textarea")
         tb = st.text_area("Error / Traceback (optional)", height=90,
             placeholder="NameError: name 'naam' is not defined")
 
         col_d1, col_d2 = st.columns(2)
         debug_btn = col_d1.button("🔍 Fix My Code", type="primary", use_container_width=True)
-        if col_d2.button("📥 Load from Builder", use_container_width=True, key="dbg_load"):
-            if st.session_state.active_code:
-                st.session_state["_dbg_pre"] = st.session_state.active_code
-                st.rerun()
-            else:
-                st.warning("No active code in Builder yet.")
-
-        # Apply prefill (Streamlit reruns, so we show it as default value via session)
-        if "_dbg_pre" in st.session_state:
-            buggy = st.session_state.pop("_dbg_pre")
 
     with dr:
         if st.session_state.debug_code:
@@ -805,8 +800,17 @@ with tab_refactor:
 
     rl, rr = st.columns([1, 1], gap="large")
     with rl:
+        if st.button("📥 Load from Builder", use_container_width=True, key="ref_load"):
+            if st.session_state.active_code:
+                st.session_state["ref_code_val"] = st.session_state.active_code
+                st.rerun()
+            else:
+                st.warning("No active code in Builder yet.")
+
         raw_code = st.text_area("Paste code to refactor", height=200,
-            placeholder="x=1\ndef f(a,b):\n  return a+b")
+            value=st.session_state.get("ref_code_val", ""),
+            placeholder="x=1\ndef f(a,b):\n  return a+b",
+            key="ref_textarea")
         goals = st.multiselect("Refactoring goals",
             ["PEP 8 compliance", "Type hints", "Docstrings",
              "Performance", "DRY principle", "Error handling", "Add logging"],
@@ -814,15 +818,6 @@ with tab_refactor:
 
         rc1, rc2 = st.columns(2)
         ref_btn = rc1.button("♻️ Refactor Code", type="primary", use_container_width=True)
-        if rc2.button("📥 Load from Builder", use_container_width=True, key="ref_load"):
-            if st.session_state.active_code:
-                st.session_state["_ref_pre"] = st.session_state.active_code
-                st.rerun()
-            else:
-                st.warning("No active code in Builder yet.")
-
-        if "_ref_pre" in st.session_state:
-            raw_code = st.session_state.pop("_ref_pre")
 
     with rr:
         if st.session_state.refactor_code:
@@ -873,21 +868,21 @@ with tab_tests:
 
     tl, tr = st.columns([1, 1], gap="large")
     with tl:
-        test_src = st.text_area("Paste code to test", height=200,
-            placeholder="def add(a: int, b: int) -> int:\n    return a + b")
-        test_style = st.radio("Test framework", ["pytest", "unittest"], horizontal=True)
-
-        tc1, tc2 = st.columns(2)
-        test_btn = tc1.button("🧪 Generate Tests", type="primary", use_container_width=True)
-        if tc2.button("📥 Load from Builder", use_container_width=True, key="tst_load"):
+        if st.button("📥 Load from Builder", use_container_width=True, key="tst_load"):
             if st.session_state.active_code:
-                st.session_state["_tst_pre"] = st.session_state.active_code
+                st.session_state["tst_code_val"] = st.session_state.active_code
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
 
-        if "_tst_pre" in st.session_state:
-            test_src = st.session_state.pop("_tst_pre")
+        test_src = st.text_area("Paste code to test", height=200,
+            value=st.session_state.get("tst_code_val", ""),
+            placeholder="def add(a: int, b: int) -> int:\n    return a + b",
+            key="tst_textarea")
+        test_style = st.radio("Test framework", ["pytest", "unittest"], horizontal=True)
+
+        tc1, tc2 = st.columns(2)
+        test_btn = tc1.button("🧪 Generate Tests", type="primary", use_container_width=True)
 
     with tr:
         if st.session_state.test_code:
@@ -1028,23 +1023,23 @@ with tab_docs:
         doc_name = st.text_input("Project name", placeholder="e.g. DataViz Pro")
         doc_desc = st.text_area("Project description", height=110,
             placeholder="Describe the app, features, and tech stack.")
+        if st.button("📥 Load code from Builder", use_container_width=True, key="doc_load"):
+            if st.session_state.active_code:
+                st.session_state["doc_code_val"] = st.session_state.active_code
+                st.rerun()
+            else:
+                st.warning("No active code in Builder yet.")
+
         doc_code = st.text_area("Source code (optional)", height=90,
-            placeholder="Paste source code for more accurate docs…")
+            value=st.session_state.get("doc_code_val", ""),
+            placeholder="Paste source code for more accurate docs…",
+            key="doc_textarea")
         doc_types = st.multiselect("What to generate",
             ["GitHub README", "API Reference", "Developer Guide", "User Manual", "Changelog Template"],
             default=["GitHub README"])
 
         docb1, docb2 = st.columns(2)
         doc_btn = docb1.button("📄 Generate Docs", type="primary", use_container_width=True)
-        if docb2.button("📥 Load code from Builder", use_container_width=True, key="doc_load"):
-            if st.session_state.active_code:
-                st.session_state["_doc_pre"] = st.session_state.active_code
-                st.rerun()
-            else:
-                st.warning("No active code in Builder yet.")
-
-        if "_doc_pre" in st.session_state:
-            doc_code = st.session_state.pop("_doc_pre")
 
     with dor:
         if st.session_state.doc_result:
