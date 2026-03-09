@@ -278,155 +278,115 @@ label, p { color: var(--text) !important; }
 .hist-meta { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
 
 /* ═══════════════════════════════════════════
-   PURE CSS CHECKBOX DRAWER — no JS needed
-   Works inside Streamlit's sandboxed iframe
+   MOBILE — style Streamlit's native sidebar
+   toggle into a permanent 3-dot button
    ═══════════════════════════════════════════ */
 
-/* Hide the checkbox input itself */
-#lf-drawer-toggle {
-    position: fixed;
-    opacity: 0;
-    width: 0; height: 0;
-    pointer-events: none;
+/* Make the collapsed sidebar control always visible and styled */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
-/* ── 3-dot trigger label (always fixed top-left) ── */
-#lf-drawer-trigger {
-    position: fixed;
-    top: 12px;
-    right: 14px;
-    left: auto;
-    z-index: 999999;
-    width: 44px;
-    height: 44px;
-    background: var(--accent);
-    border-radius: 11px;
-    cursor: pointer;
-    display: none;           /* shown only on mobile via media query */
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    box-shadow: 0 4px 14px rgba(79,70,229,0.45);
-    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
+/* The actual button inside collapsedControl */
+[data-testid="collapsedControl"] button,
+[data-testid="collapsedControl"] > button {
+    background: var(--accent) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.45) !important;
+    transition: background 0.18s, transform 0.15s !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: relative !important;
+    padding: 0 !important;
 }
-#lf-drawer-trigger:hover,
-#lf-drawer-trigger:active {
-    background: var(--accent-h);
-    transform: scale(1.07);
-    box-shadow: 0 6px 20px rgba(79,70,229,0.55);
+[data-testid="collapsedControl"] button:hover {
+    background: var(--accent-h) !important;
+    transform: scale(1.07) !important;
 }
-/* The three dots */
-#lf-drawer-trigger .dot {
+
+/* Hide the default arrow icon, replace with 3 dots via pseudo-elements */
+[data-testid="collapsedControl"] button svg {
+    display: none !important;
+}
+[data-testid="collapsedControl"] button::before,
+[data-testid="collapsedControl"] button::after,
+[data-testid="collapsedControl"] button span {
+    content: '';
     display: block;
     width: 5px; height: 5px;
     background: #fff;
     border-radius: 50%;
-}
-
-/* ── Backdrop overlay ── */
-#lf-drawer-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(10,10,30,0.5);
-    z-index: 999997;
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    cursor: pointer;
-}
-
-/* ── Slide-in drawer panel ── */
-#lf-drawer-panel {
-    position: fixed;
-    top: 0; left: 0;
-    width: min(300px, 88vw);
-    height: 100vh;
-    background: var(--surface);
-    border-right: 2px solid var(--border);
-    box-shadow: 6px 0 32px rgba(79,70,229,0.18);
-    z-index: 999998;
-    transform: translateX(-105%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 20px 16px 24px;
-    box-sizing: border-box;
-}
-
-/* ── Close label inside panel ── */
-#lf-drawer-close {
     position: absolute;
-    top: 14px; right: 14px;
-    width: 30px; height: 30px;
-    background: var(--accent-lt);
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 800;
-    color: var(--accent);
-    line-height: 1;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    transition: background 0.15s, color 0.15s;
 }
-#lf-drawer-close:hover { background: var(--accent); color: #fff; }
+[data-testid="collapsedControl"] button::before { top: 10px; left: 50%; transform: translateX(-50%); }
+[data-testid="collapsedControl"] button::after  { bottom: 10px; left: 50%; transform: translateX(-50%); }
+[data-testid="collapsedControl"] button span    { top: 50%; left: 50%; transform: translate(-50%,-50%); }
 
-/* ── When checkbox is CHECKED → show panel + backdrop ── */
-#lf-drawer-toggle:checked ~ #lf-drawer-backdrop { display: block; }
-#lf-drawer-toggle:checked ~ #lf-drawer-panel    { transform: translateX(0); }
-
-/* ═══════════════════════════════════════════
-   MOBILE BREAKPOINT
-   ═══════════════════════════════════════════ */
+/* ── Mobile breakpoint ── */
 @media (max-width: 768px) {
-    /* Hide native Streamlit sidebar + its collapse button */
-    [data-testid="stSidebar"]        { display: none !important; }
-    [data-testid="collapsedControl"] { display: none !important; }
-    section[data-testid="stSidebarContent"] { display: none !important; }
+    /* Keep native sidebar working — it slides in from Streamlit */
+    [data-testid="stSidebar"] {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        height: 100vh !important;
+        z-index: 99999 !important;
+        width: min(300px, 90vw) !important;
+        box-shadow: 6px 0 32px rgba(79,70,229,0.2) !important;
+    }
 
-    /* Show our 3-dot trigger */
-    #lf-drawer-trigger { display: flex !important; }
+    /* Sidebar content readable on mobile */
+    [data-testid="stSidebar"] * {
+        font-size: 14px !important;
+    }
+    [data-testid="stSidebar"] h2 {
+        font-size: 18px !important;
+    }
+    [data-testid="stSidebar"] h3 {
+        font-size: 15px !important;
+    }
 
-    /* Header: indent to avoid overlap with 3-dot button */
+    /* collapsedControl fixed top-right, always visible */
+    [data-testid="collapsedControl"] {
+        position: fixed !important;
+        top: 12px !important;
+        right: 14px !important;
+        left: auto !important;
+        z-index: 999999 !important;
+    }
+
+    /* Header: pad right so title doesn't go under button */
     .lf-header {
-        padding: 14px 60px 14px 16px !important;
+        padding: 14px 66px 14px 16px !important;
         gap: 8px !important;
     }
     .lf-header h1 { font-size: 18px !important; }
     .lf-badge { font-size: 10px !important; padding: 3px 9px !important; }
 
-    /* Tabs: compact wrap */
+    /* Tabs compact */
     .stTabs [data-baseweb="tab-list"] { gap: 2px !important; }
     .stTabs [data-baseweb="tab"] {
         font-size: 11px !important;
         padding: 7px 9px !important;
     }
 
-    /* Buttons full width */
-    .stButton > button {
-        font-size: 13px !important;
-        padding: 9px 14px !important;
-    }
+    /* Buttons */
+    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; }
     .stDownloadButton > button { font-size: 13px !important; }
 
-    /* Chat */
+    /* Misc */
     [data-testid="stChatInput"] textarea { font-size: 14px !important; }
-
-    /* Cards / misc */
     [data-testid="stMetric"] { padding: 10px 12px !important; }
     .sec-title { font-size: 16px; }
     .empty-state { padding: 28px 16px; }
-}
-
-/* ── Desktop: hide drawer elements entirely ── */
-@media (min-width: 769px) {
-    #lf-drawer-trigger   { display: none !important; }
-    #lf-drawer-backdrop  { display: none !important; }
-    #lf-drawer-panel     { display: none !important; }
-    #lf-drawer-toggle    { display: none !important; }
 }
 
 /* Extra small phones */
@@ -644,76 +604,6 @@ st.markdown("""
 if not api_key:
     st.warning("⚠️ **No API key detected.** Please enter your API key in the sidebar to use all features.")
 
-# ── Mobile drawer: pure CSS checkbox toggle (no JS — works in Streamlit sandbox) ──
-_model_labels = {
-    "llama-3.3-70b-versatile":                    "🧠 Llama 3.3 70B",
-    "llama-3.1-8b-instant":                       "⚡ Llama 3.1 8B",
-    "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick",
-}
-_model_name  = _model_labels.get(model, model)
-_key_status  = "✅ API key active" if api_key else "⚠️ No API key set"
-_key_color   = "#059669" if api_key else "#d97706"
-_key_bg      = "#ecfdf5" if api_key else "#fffbeb"
-_key_border  = "#a7f3d0" if api_key else "#fde68a"
-_builds      = st.session_state.total_builds
-_tok         = st.session_state.total_tokens
-_tok_str     = f"{_tok/1000:.1f}k" if _tok >= 1000 else str(_tok)
-
-st.markdown(f"""
-<!-- hidden checkbox — the toggle state holder -->
-<input type="checkbox" id="lf-drawer-toggle">
-
-<!-- 3-dot trigger label -->
-<label for="lf-drawer-toggle" id="lf-drawer-trigger" title="Settings">
-  <span class="dot"></span>
-  <span class="dot"></span>
-  <span class="dot"></span>
-</label>
-
-<!-- Backdrop (clicking it closes the drawer) -->
-<label for="lf-drawer-toggle" id="lf-drawer-backdrop"></label>
-
-<!-- Drawer panel -->
-<div id="lf-drawer-panel">
-  <label for="lf-drawer-toggle" id="lf-drawer-close" title="Close">✕</label>
-
-  <div style="margin:0 0 16px 0;padding-right:40px">
-    <div style="font-size:21px;font-weight:800;color:#4f46e5">⚡ LogicForge</div>
-    <div style="font-size:12px;color:#94a3b8;margin-top:2px">AI Code Architect · v2.0</div>
-  </div>
-
-  <hr style="border:none;border-top:1px solid #d1d9f0;margin:0 0 14px">
-
-  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🔑 API Status</div>
-  <div style="background:{_key_bg};border:1px solid {_key_border};border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;color:{_key_color};margin-bottom:14px">
-    {_key_status}
-  </div>
-
-  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">⚙️ Active Settings</div>
-  <div style="background:#f8faff;border:1px solid #d1d9f0;border-radius:8px;padding:11px 13px;font-size:13px;color:#334155;line-height:1.9;margin-bottom:14px">
-    <div>🤖 <strong>Model:</strong> {_model_name}</div>
-    <div>🔧 <strong>Framework:</strong> {framework}</div>
-    <div>🌡️ <strong>Temp:</strong> {temperature}</div>
-    <div>📏 <strong>Max tokens:</strong> {max_tokens:,}</div>
-  </div>
-
-  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">📊 Session Stats</div>
-  <div style="display:flex;gap:10px;margin-bottom:16px">
-    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
-      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_builds}</div>
-      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Builds</div>
-    </div>
-    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
-      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_tok_str}</div>
-      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Tokens</div>
-    </div>
-  </div>
-
-  <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b;line-height:1.5;text-align:center">
-    💡 To change model, framework or API key, use the <strong>sidebar</strong> on desktop
-  </div>
-</div>
-""", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
 # 9. TABS
