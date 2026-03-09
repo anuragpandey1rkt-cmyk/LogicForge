@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="LogicForge AI",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 # ══════════════════════════════════════════════
@@ -277,11 +277,71 @@ label, p { color: var(--text) !important; }
 }
 .hist-meta { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
 
-/* Mobile */
+/* ── Mobile responsive ── */
 @media (max-width: 768px) {
-    .lf-header { padding: 16px 18px; }
-    .stTabs [data-baseweb="tab"] { font-size: 11px !important; padding: 6px 8px !important; }
-    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; }
+    /* Header */
+    .lf-header { padding: 14px 16px; gap: 8px; }
+    .lf-header h1 { font-size: 20px !important; }
+    .lf-badge { font-size: 10px !important; padding: 3px 10px !important; }
+
+    /* Sidebar toggle button — make it visible and well-sized */
+    [data-testid="collapsedControl"],
+    button[kind="header"] {
+        display: flex !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: var(--accent) !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 6px !important;
+        width: 36px !important;
+        height: 36px !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0 2px 8px rgba(79,70,229,0.3) !important;
+        z-index: 999 !important;
+    }
+    [data-testid="collapsedControl"] svg { color: white !important; fill: white !important; }
+
+    /* Sidebar full width on mobile */
+    [data-testid="stSidebar"] {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Tabs wrap cleanly */
+    .stTabs [data-baseweb="tab-list"] { gap: 2px !important; }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 11px !important;
+        padding: 7px 9px !important;
+        min-width: 0 !important;
+    }
+
+    /* Buttons */
+    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; width: 100% !important; }
+    .stDownloadButton > button { font-size: 13px !important; width: 100% !important; }
+
+    /* Stack columns on mobile */
+    [data-testid="column"] { min-width: 100% !important; width: 100% !important; }
+
+    /* Chat input */
+    [data-testid="stChatInput"] textarea { font-size: 14px !important; }
+
+    /* Empty states padding */
+    .empty-state { padding: 28px 16px; }
+
+    /* Metric cards */
+    [data-testid="stMetric"] { padding: 10px 12px !important; }
+
+    /* Section titles */
+    .sec-title { font-size: 16px; }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+    .lf-header h1 { font-size: 17px !important; }
+    .stTabs [data-baseweb="tab"] { font-size: 10px !important; padding: 6px 7px !important; }
 }
 
 #MainMenu, footer { visibility: hidden; }
@@ -347,10 +407,10 @@ with st.sidebar:
 
     st.markdown("### ⚙️ Settings")
     MODEL_MAP = {
-        "llama-3.3-70b-versatile":    "🧠 Llama 3.3 70B — Best quality",
-        "llama-3.1-8b-instant":       "⚡ Llama 3.1 8B — Fastest",
-        "llama3-70b-8192":            "🔀 Llama 3 70B — Long context",
-        "llama-3.1-70b-versatile":    "💎 Llama 3.1 70B — Balanced",
+        "llama-3.3-70b-versatile":                    "🧠 Llama 3.3 70B — Best quality",
+        "llama-3.1-8b-instant":                       "⚡ Llama 3.1 8B — Fastest",
+        "meta-llama/llama-4-scout-17b-16e-instruct":  "🦙 Llama 4 Scout 17B — Latest",
+        "qwen/qwen-3-32b":                            "💎 Qwen 3 32B — Reasoning",
     }
     model = st.selectbox("Model", list(MODEL_MAP.keys()),
                          format_func=lambda x: MODEL_MAP[x], index=0)
@@ -365,7 +425,9 @@ with st.sidebar:
     st.markdown("### 📊 Session Stats")
     c1, c2 = st.columns(2)
     c1.metric("🏗️ Builds", st.session_state.total_builds)
-    c2.metric("🔤 Tokens", f"{st.session_state.total_tokens:,}")
+    tok_val = st.session_state.total_tokens
+    tok_str = f"{tok_val/1000:.1f}k" if tok_val >= 1000 else str(tok_val)
+    c2.metric("🔤 Tokens", tok_str)
 
     st.divider()
     if st.button("🗑️ Reset Session", use_container_width=True):
@@ -825,30 +887,35 @@ with tab_chat:
 
     # Quick action buttons
     qa1, qa2, qa3, qa4 = st.columns(4)
+    def _chat_send(user_msg: str):
+        """Append user message and immediately get AI reply."""
+        if not api_key:
+            st.error("Add your API key in the sidebar.")
+            return
+        st.session_state.chat_history.append({"role": "user", "content": user_msg})
+        try:
+            msgs = [{"role": "system", "content": SYS_CHAT}]
+            msgs += [{"role": m["role"], "content": m["content"]}
+                     for m in st.session_state.chat_history[-20:]]
+            reply, tok = call_groq(msgs, max_tok=4000, temp=0.3)
+            st.session_state.chat_history.append({"role": "assistant", "content": reply})
+            st.session_state.total_tokens += tok
+        except Exception as e:
+            st.session_state.chat_history.append({"role": "assistant", "content": f"⚠️ Error: {e}"})
+        st.rerun()
+
     if qa1.button("📋 Review code", use_container_width=True):
         if st.session_state.active_code:
-            st.session_state.chat_history.append({
-                "role": "user",
-                "content": f"Please review this code and suggest improvements:\n```python\n{st.session_state.active_code[:3000]}\n```"})
-            st.rerun()
+            _chat_send(f"Please review this code and suggest improvements:\n```python\n{st.session_state.active_code[:3000]}\n```")
         else:
             st.warning("Generate code in Builder first.")
     if qa2.button("📦 Best libraries", use_container_width=True):
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": "What are the best Python libraries for data science and ML in 2025? Quick rundown please."})
-        st.rerun()
+        _chat_send("What are the best Python libraries for data science and ML in 2025? Give a quick rundown.")
     if qa3.button("⚡ Perf tips", use_container_width=True):
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": "Give me the top 5 Python performance optimisation tips with short code examples."})
-        st.rerun()
+        _chat_send("Give me the top 5 Python performance optimisation tips with short code examples.")
     if qa4.button("🔒 Security audit", use_container_width=True):
         if st.session_state.active_code:
-            st.session_state.chat_history.append({
-                "role": "user",
-                "content": f"Do a security review of this code:\n```python\n{st.session_state.active_code[:3000]}\n```"})
-            st.rerun()
+            _chat_send(f"Do a security review of this code:\n```python\n{st.session_state.active_code[:3000]}\n```")
         else:
             st.warning("Generate code in Builder first.")
 
@@ -890,25 +957,7 @@ with tab_chat:
                     except Exception as e:
                         st.error(f"Chat error: {e}")
 
-    # Reply to quick-action injected messages
-    if (st.session_state.chat_history and
-            st.session_state.chat_history[-1]["role"] == "user" and
-            len(st.session_state.chat_history) > 0 and
-            api_key):
-        prev = st.session_state.chat_history
-        if len(prev) < 2 or prev[-2]["role"] == "user":
-            # Last two are both user — need an AI reply
-            with st.spinner("Thinking…"):
-                try:
-                    msgs = [{"role": "system", "content": SYS_CHAT}]
-                    msgs += [{"role": m["role"], "content": m["content"]}
-                             for m in st.session_state.chat_history[-20:]]
-                    reply, tok = call_groq(msgs, max_tok=4000, temp=0.3)
-                    st.session_state.chat_history.append({"role": "assistant", "content": reply})
-                    st.session_state.total_tokens += tok
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Chat error: {e}")
+
 
     if len(st.session_state.chat_history) > 1:
         if st.button("🗑️ Clear chat", use_container_width=False):
