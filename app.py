@@ -6,17 +6,44 @@ import io
 from datetime import datetime
 
 # ══════════════════════════════════════════════
-# 1. PAGE CONFIG  ← must be FIRST st call
+# 1. SESSION STATE (must come before page config
+#    so sidebar_open is available for layout)
+# ══════════════════════════════════════════════
+_defaults: dict = {
+    "chat_history":        [{"role": "assistant", "content": "👋 Hey! I'm your Senior Python Dev AI. Paste code, errors, or ask anything."}],
+    "build_history":       [],
+    "active_code":         "",
+    "active_explanation":  "",
+    "active_setup":        "",
+    "total_builds":        0,
+    "total_tokens":        0,
+    "debug_code":          "",
+    "debug_explanation":   "",
+    "refactor_code":       "",
+    "refactor_explanation":"",
+    "test_code":           "",
+    "doc_result":          "",
+    "groq_api_key":        "",
+    "mobile_model":        "llama-3.3-70b-versatile",
+    "mobile_framework":    "Streamlit",
+    "sidebar_open":        True,
+}
+for _k, _v in _defaults.items():
+    if _k not in st.session_state:
+        st.session_state[_k] = _v
+
+# ══════════════════════════════════════════════
+# 2. PAGE CONFIG
 # ══════════════════════════════════════════════
 st.set_page_config(
     page_title="LogicForge AI",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="expanded" if st.session_state.sidebar_open else "collapsed",
 )
 
 # ══════════════════════════════════════════════
-# 2. CSS
+# 3. CSS
 # ══════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -65,7 +92,9 @@ html, body,
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] div { color: var(--text) !important; }
 
-/* Headings */
+/* Hide Streamlit's default collapse arrow — we use our own button */
+[data-testid="collapsedControl"] { display: none !important; }
+
 h1,h2,h3,h4 {
     font-family: 'Inter', sans-serif !important;
     font-weight: 700 !important;
@@ -150,7 +179,6 @@ h1,h2,h3,h4 {
 .stTextArea textarea::placeholder,
 .stTextInput > div > div > input::placeholder { color: var(--text3) !important; }
 
-/* Labels */
 label, p { color: var(--text) !important; }
 .stSelectbox label, .stTextArea label, .stTextInput label,
 .stRadio label, .stMultiSelect label, .stSlider label {
@@ -159,7 +187,6 @@ label, p { color: var(--text) !important; }
     font-size: 13px !important;
 }
 
-/* Code blocks */
 .stCodeBlock, pre {
     background: #1e1b4b !important;
     border: 1px solid #312e81 !important;
@@ -170,7 +197,6 @@ label, p { color: var(--text) !important; }
     color: #e0e7ff !important;
 }
 
-/* Metrics */
 [data-testid="stMetric"] {
     background: var(--surface) !important;
     border: 1px solid var(--border) !important;
@@ -181,7 +207,6 @@ label, p { color: var(--text) !important; }
 [data-testid="stMetricValue"] { color: var(--accent) !important; font-weight: 700 !important; }
 [data-testid="stMetricLabel"] { color: var(--text2) !important; }
 
-/* Chat messages */
 [data-testid="stChatMessage"] {
     background: var(--surface) !important;
     border: 1px solid var(--border) !important;
@@ -190,7 +215,6 @@ label, p { color: var(--text) !important; }
     margin-bottom: 8px !important;
 }
 
-/* Expander */
 .streamlit-expanderHeader {
     background: var(--surface2) !important;
     border: 1px solid var(--border) !important;
@@ -199,27 +223,20 @@ label, p { color: var(--text) !important; }
     font-weight: 600 !important;
 }
 
-/* Alerts */
 .stAlert, [data-baseweb="notification"] { border-radius: var(--radius) !important; }
-
-/* Spinner */
 .stSpinner > div { border-top-color: var(--accent) !important; }
-
-/* Radio & checkbox text */
 .stRadio label span, .stCheckbox label span { color: var(--text) !important; }
-
-/* Multiselect tags */
 .stMultiSelect [data-baseweb="tag"] {
     background: var(--accent) !important;
     color: white !important;
     border-radius: 6px !important;
 }
 
-/* Header banner */
+/* ── Header ── */
 .lf-header {
     background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #2563eb 100%);
     border-radius: 16px;
-    padding: 24px 28px;
+    padding: 24px 28px 24px 72px; /* left pad for toggle btn */
     margin-bottom: 20px;
     box-shadow: var(--shadow-lg);
     display: flex;
@@ -227,6 +244,7 @@ label, p { color: var(--text) !important; }
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 12px;
+    position: relative;
 }
 .lf-header h1 { color: white !important; font-size: clamp(20px, 4vw, 30px) !important; margin: 0 !important; }
 .lf-header p  { color: rgba(255,255,255,0.8) !important; margin: 4px 0 0 0 !important; font-size: 13px !important; }
@@ -238,38 +256,55 @@ label, p { color: var(--text) !important; }
     font-family: 'JetBrains Mono', monospace;
 }
 
+/* ── Desktop sidebar toggle button (inside header) ── */
+/* We target the specific button by its key via aria-label trick */
+div[data-testid="stHorizontalBlock"] { gap: 0 !important; }
+
+/* Style the sidebar toggle button specifically */
+.sidebar-toggle-btn > button {
+    background: rgba(255,255,255,0.25) !important;
+    border: 1.5px solid rgba(255,255,255,0.4) !important;
+    border-radius: 10px !important;
+    font-size: 18px !important;
+    padding: 6px 12px !important;
+    box-shadow: none !important;
+    backdrop-filter: blur(4px);
+    color: white !important;
+    min-width: 44px !important;
+    height: 44px !important;
+}
+.sidebar-toggle-btn > button:hover {
+    background: rgba(255,255,255,0.38) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 /* Section headers */
 .sec-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
 .sec-sub   { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
 
-/* Coloured info cards */
 .card-green {
     background: var(--green-lt); border: 1px solid #a7f3d0;
     border-left: 4px solid var(--green);
-    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px;
-    color: var(--text);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px; color: var(--text);
 }
 .card-blue {
     background: var(--blue-lt); border: 1px solid #bfdbfe;
     border-left: 4px solid var(--blue);
-    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px;
-    color: var(--text);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px; color: var(--text);
 }
 .card-amber {
     background: var(--amber-lt); border: 1px solid #fde68a;
     border-left: 4px solid var(--amber);
-    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px;
-    color: var(--text);
+    border-radius: var(--radius); padding: 14px 18px; margin-bottom: 12px; color: var(--text);
 }
 
-/* Empty states */
 .empty-state {
     background: var(--surface2); border: 2px dashed var(--border);
     border-radius: var(--radius); padding: 40px 20px;
     text-align: center; color: var(--text3); font-size: 14px;
 }
 
-/* History card */
 .hist-card {
     background: var(--surface); border: 1px solid var(--border);
     border-left: 4px solid var(--accent); border-radius: var(--radius);
@@ -277,208 +312,96 @@ label, p { color: var(--text) !important; }
 }
 .hist-meta { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
 
-/* ═══════════════════════════════════════════
-   DESKTOP SIDEBAR TOGGLE BUTTON
-   ═══════════════════════════════════════════ */
-#lf-sidebar-btn {
-    position: fixed;
-    top: 14px;
-    left: 14px;
-    z-index: 99999;
-    width: 42px;
-    height: 42px;
-    background: var(--accent);
-    border-radius: 10px;
-    cursor: pointer;
-    display: none; /* shown via desktop media query */
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    box-shadow: 0 4px 14px rgba(79,70,229,0.4);
-    transition: background 0.18s, transform 0.15s;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    text-decoration: none;
-    border: none;
-}
-#lf-sidebar-btn:hover { background: var(--accent-h); transform: scale(1.06); }
-#lf-sidebar-btn .bar {
-    display: block;
-    width: 18px; height: 2px;
-    background: #fff;
-    border-radius: 2px;
-}
-
-/* ═══════════════════════════════════════════
-   PURE CSS CHECKBOX DRAWER — mobile
-   ═══════════════════════════════════════════ */
+/* ══════════════════════════════════════════
+   MOBILE DRAWER (pure CSS checkbox)
+══════════════════════════════════════════ */
 #lf-drawer-toggle {
-    position: fixed;
-    opacity: 0;
-    width: 0; height: 0;
-    pointer-events: none;
+    position: fixed; opacity: 0; width: 0; height: 0; pointer-events: none;
 }
-
 #lf-drawer-trigger {
-    position: fixed;
-    top: 12px;
-    right: 14px;
-    left: auto;
-    z-index: 999999;
-    width: 44px;
-    height: 44px;
-    background: var(--accent);
-    border-radius: 11px;
-    cursor: pointer;
+    position: fixed; top: 12px; right: 14px; left: auto;
+    z-index: 999999; width: 44px; height: 44px;
+    background: var(--accent); border-radius: 11px; cursor: pointer;
     display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
+    flex-direction: column; align-items: center; justify-content: center; gap: 5px;
     box-shadow: 0 4px 14px rgba(79,70,229,0.45);
-    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
+    transition: background 0.18s, transform 0.15s;
+    -webkit-tap-highlight-color: transparent; user-select: none;
 }
-#lf-drawer-trigger:hover,
-#lf-drawer-trigger:active {
-    background: var(--accent-h);
-    transform: scale(1.07);
-    box-shadow: 0 6px 20px rgba(79,70,229,0.55);
-}
-#lf-drawer-trigger .dot {
-    display: block;
-    width: 5px; height: 5px;
-    background: #fff;
-    border-radius: 50%;
-}
+#lf-drawer-trigger:hover { background: var(--accent-h); transform: scale(1.07); }
+#lf-drawer-trigger .dot { display: block; width: 5px; height: 5px; background: #fff; border-radius: 50%; }
 
 #lf-drawer-backdrop {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(10,10,30,0.5);
-    z-index: 999997;
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
-    cursor: pointer;
+    display: none; position: fixed; inset: 0;
+    background: rgba(10,10,30,0.5); z-index: 999997;
+    backdrop-filter: blur(3px); cursor: pointer;
 }
-
 #lf-drawer-panel {
-    position: fixed;
-    top: 0; left: 0;
-    width: min(320px, 92vw);
-    height: 100vh;
-    background: var(--surface);
-    border-right: 2px solid var(--border);
+    position: fixed; top: 0; left: 0;
+    width: min(320px, 92vw); height: 100vh;
+    background: var(--surface); border-right: 2px solid var(--border);
     box-shadow: 6px 0 32px rgba(79,70,229,0.18);
-    z-index: 999998;
-    transform: translateX(-105%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 20px 16px 32px;
-    box-sizing: border-box;
+    z-index: 999998; transform: translateX(-105%);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto; overflow-x: hidden;
+    padding: 20px 16px 32px; box-sizing: border-box;
 }
-
 #lf-drawer-close {
-    position: absolute;
-    top: 14px; right: 14px;
-    width: 30px; height: 30px;
-    background: var(--accent-lt);
-    border-radius: 8px;
-    cursor: pointer;
+    position: absolute; top: 14px; right: 14px;
+    width: 30px; height: 30px; background: var(--accent-lt);
+    border-radius: 8px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 800;
-    color: var(--accent);
-    line-height: 1;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
+    font-size: 14px; font-weight: 800; color: var(--accent);
+    -webkit-tap-highlight-color: transparent; user-select: none;
     transition: background 0.15s, color 0.15s;
 }
 #lf-drawer-close:hover { background: var(--accent); color: #fff; }
-
 #lf-drawer-toggle:checked ~ #lf-drawer-backdrop { display: block; }
 #lf-drawer-toggle:checked ~ #lf-drawer-panel    { transform: translateX(0); }
 
-/* Custom select styles for drawer */
 .drawer-select {
-    width: 100%;
-    padding: 9px 12px;
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: 9px;
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 10px;
-    outline: none;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
+    width: 100%; padding: 9px 32px 9px 12px;
+    background: var(--surface2); border: 1.5px solid var(--border);
+    border-radius: 9px; color: var(--text);
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+    margin-bottom: 10px; outline: none; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234f46e5' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 32px;
+    background-repeat: no-repeat; background-position: right 12px center;
 }
-.drawer-select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
-}
+.drawer-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
 .drawer-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: .6px;
-    margin-bottom: 5px;
-    display: block;
+    font-size: 11px; font-weight: 700; color: #64748b;
+    text-transform: uppercase; letter-spacing: .6px;
+    margin-bottom: 5px; display: block;
 }
 
-/* ═══════════════════════════════════════════
-   MOBILE BREAKPOINT
-   ═══════════════════════════════════════════ */
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
 @media (max-width: 768px) {
-    [data-testid="stSidebar"]        { display: none !important; }
-    [data-testid="collapsedControl"] { display: none !important; }
+    [data-testid="stSidebar"] { display: none !important; }
     section[data-testid="stSidebarContent"] { display: none !important; }
-
     #lf-drawer-trigger { display: flex !important; }
-    #lf-sidebar-btn    { display: none !important; }
-
-    .lf-header {
-        padding: 14px 60px 14px 16px !important;
-        gap: 8px !important;
-    }
+    .lf-header { padding: 14px 60px 14px 16px !important; }
     .lf-header h1 { font-size: 18px !important; }
     .lf-badge { font-size: 10px !important; padding: 3px 9px !important; }
-
-    .stTabs [data-baseweb="tab-list"] { gap: 2px !important; }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 11px !important;
-        padding: 7px 9px !important;
-    }
-
-    .stButton > button {
-        font-size: 13px !important;
-        padding: 9px 14px !important;
-    }
+    .stTabs [data-baseweb="tab"] { font-size: 11px !important; padding: 7px 9px !important; }
+    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; }
     .stDownloadButton > button { font-size: 13px !important; }
-    [data-testid="stChatInput"] textarea { font-size: 14px !important; }
     [data-testid="stMetric"] { padding: 10px 12px !important; }
     .sec-title { font-size: 16px; }
     .empty-state { padding: 28px 16px; }
+
+    /* Hide sidebar toggle button on mobile */
+    .sidebar-toggle-btn { display: none !important; }
 }
 
-/* ── Desktop: show sidebar toggle btn, hide mobile drawer ── */
 @media (min-width: 769px) {
-    #lf-drawer-trigger   { display: none !important; }
-    #lf-drawer-backdrop  { display: none !important; }
-    #lf-drawer-panel     { display: none !important; }
-    #lf-drawer-toggle    { display: none !important; }
-    #lf-sidebar-btn      { display: flex !important; }
+    #lf-drawer-trigger  { display: none !important; }
+    #lf-drawer-backdrop { display: none !important; }
+    #lf-drawer-panel    { display: none !important; }
+    #lf-drawer-toggle   { display: none !important; }
 }
 
 @media (max-width: 420px) {
@@ -486,36 +409,10 @@ label, p { color: var(--text) !important; }
     .stTabs [data-baseweb="tab"] { font-size: 10px !important; padding: 6px 7px !important; }
 }
 
-/* Streamlit chrome */
 #MainMenu, footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════
-# 3. SESSION STATE
-# ══════════════════════════════════════════════
-_defaults: dict = {
-    "chat_history":        [{"role": "assistant", "content": "👋 Hey! I'm your Senior Python Dev AI. Paste code, errors, or ask anything."}],
-    "build_history":       [],
-    "active_code":         "",
-    "active_explanation":  "",
-    "active_setup":        "",
-    "total_builds":        0,
-    "total_tokens":        0,
-    "debug_code":          "",
-    "debug_explanation":   "",
-    "refactor_code":       "",
-    "refactor_explanation":"",
-    "test_code":           "",
-    "doc_result":          "",
-    "groq_api_key":        "",
-    "mobile_model":        "llama-3.3-70b-versatile",
-    "mobile_framework":    "Streamlit",
-}
-for _k, _v in _defaults.items():
-    if _k not in st.session_state:
-        st.session_state[_k] = _v
 
 # ══════════════════════════════════════════════
 # 4. API KEY
@@ -532,8 +429,8 @@ if not api_key and st.session_state.groq_api_key:
 # 5. SIDEBAR
 # ══════════════════════════════════════════════
 MODEL_MAP = {
-    "llama-3.3-70b-versatile":       "🧠 Llama 3.3 70B — Best quality",
-    "llama-3.1-8b-instant":          "⚡ Llama 3.1 8B — Fastest",
+    "llama-3.3-70b-versatile":                       "🧠 Llama 3.3 70B — Best quality",
+    "llama-3.1-8b-instant":                          "⚡ Llama 3.1 8B — Fastest",
     "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick — Latest",
 }
 FRAMEWORKS = ["Streamlit", "FastAPI", "Flask", "Django", "Pure Python", "CLI Tool"]
@@ -571,8 +468,8 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     c1.metric("🏗️ Builds", st.session_state.total_builds)
     tok_val = st.session_state.total_tokens
-    tok_str = f"{tok_val/1000:.1f}k" if tok_val >= 1000 else str(tok_val)
-    c2.metric("🔤 Tokens", tok_str)
+    tok_str_sb = f"{tok_val/1000:.1f}k" if tok_val >= 1000 else str(tok_val)
+    c2.metric("🔤 Tokens", tok_str_sb)
 
     st.divider()
     if st.button("🗑️ Reset Session", use_container_width=True):
@@ -682,70 +579,86 @@ SYS_DOCS = (
 )
 
 # ══════════════════════════════════════════════
-# 8. HEADER
+# 8. HEADER  with working sidebar toggle button
 # ══════════════════════════════════════════════
-st.markdown("""
-<div class="lf-header">
-  <div>
-    <h1>⚡ LogicForge AI Architect</h1>
-    <p>Build · Debug · Refactor · Test · Document — all in one place</p>
-  </div>
-  <span class="lf-badge">v2.0 · AI Powered</span>
-</div>
-""", unsafe_allow_html=True)
+h_left, h_mid, h_right = st.columns([0.06, 0.8, 0.14])
+
+with h_left:
+    # This is the REAL working toggle — pure Streamlit, no JS
+    st.markdown('<div class="sidebar-toggle-btn">', unsafe_allow_html=True)
+    icon = "✕" if st.session_state.sidebar_open else "☰"
+    if st.button(icon, key="sidebar_toggle_btn"):
+        st.session_state.sidebar_open = not st.session_state.sidebar_open
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with h_mid:
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg,#4f46e5 0%,#7c3aed 50%,#2563eb 100%);
+        border-radius: 14px; padding: 18px 22px;
+        box-shadow: 0 8px 32px rgba(79,70,229,0.12);
+    ">
+      <h1 style="color:white!important;font-size:clamp(18px,3.5vw,28px)!important;margin:0!important">
+        ⚡ LogicForge AI Architect
+      </h1>
+      <p style="color:rgba(255,255,255,0.8)!important;margin:4px 0 0!important;font-size:13px!important">
+        Build · Debug · Refactor · Test · Document — all in one place
+      </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with h_right:
+    st.markdown("""
+    <div style="
+        background:linear-gradient(135deg,#4f46e5,#2563eb);
+        border-radius:12px; padding:14px 10px;
+        text-align:center; color:white;
+        font-family:'JetBrains Mono',monospace;
+        font-size:11px; font-weight:600;
+        box-shadow:0 4px 14px rgba(79,70,229,0.3);
+        height:100%; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:4px;
+    ">
+      <div style="font-size:18px">⚡</div>
+      <div>v2.0</div>
+      <div style="opacity:.75">AI Powered</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("<div style='margin-bottom:16px'></div>", unsafe_allow_html=True)
 
 if not api_key:
-    st.warning("⚠️ **No API key detected.** Please enter your API key in the sidebar to use all features.")
-
-# ── Desktop sidebar toggle button (hamburger) ──
-st.markdown("""
-<a id="lf-sidebar-btn" title="Toggle Sidebar" onclick="
-  var s = window.parent.document.querySelector('[data-testid=stSidebar]');
-  var c = window.parent.document.querySelector('[data-testid=collapsedControl]');
-  if(s){ s.style.display = s.style.display === 'none' ? '' : 'none'; }
-  if(c){ c.click(); }
-" href="javascript:void(0)">
-  <span class='bar'></span>
-  <span class='bar'></span>
-  <span class='bar'></span>
-</a>
-""", unsafe_allow_html=True)
+    st.warning("⚠️ **No API key detected.** Enter your API key in the sidebar (click ☰ to open it).")
 
 # ── Mobile drawer ──
 _model_labels = {
-    "llama-3.3-70b-versatile":                    "🧠 Llama 3.3 70B — Best quality",
-    "llama-3.1-8b-instant":                       "⚡ Llama 3.1 8B — Fastest",
+    "llama-3.3-70b-versatile":                       "🧠 Llama 3.3 70B — Best quality",
+    "llama-3.1-8b-instant":                          "⚡ Llama 3.1 8B — Fastest",
     "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick — Latest",
 }
-_key_status  = "✅ API key active" if api_key else "⚠️ No API key set"
-_key_color   = "#059669" if api_key else "#d97706"
-_key_bg      = "#ecfdf5" if api_key else "#fffbeb"
-_key_border  = "#a7f3d0" if api_key else "#fde68a"
-_builds      = st.session_state.total_builds
-_tok         = st.session_state.total_tokens
-_tok_str     = f"{_tok/1000:.1f}k" if _tok >= 1000 else str(_tok)
+_key_status = "✅ API key active" if api_key else "⚠️ No API key set"
+_key_color  = "#059669" if api_key else "#d97706"
+_key_bg     = "#ecfdf5" if api_key else "#fffbeb"
+_key_border = "#a7f3d0" if api_key else "#fde68a"
+_builds     = st.session_state.total_builds
+_tok        = st.session_state.total_tokens
+_tok_str    = f"{_tok/1000:.1f}k" if _tok >= 1000 else str(_tok)
 
-# Build model options HTML
-_model_opts = ""
-for _mk, _mv in _model_labels.items():
-    _sel = "selected" if _mk == st.session_state.mobile_model else ""
-    _model_opts += f'<option value="{_mk}" {_sel}>{_mv}</option>\n'
-
-# Build framework options HTML
-_fw_opts = ""
-for _fw in FRAMEWORKS:
-    _sel = "selected" if _fw == st.session_state.mobile_framework else ""
-    _fw_opts += f'<option value="{_fw}" {_sel}>{_fw}</option>\n'
+_model_opts = "".join(
+    f'<option value="{k}" {"selected" if k == st.session_state.mobile_model else ""}>{v}</option>\n'
+    for k, v in _model_labels.items()
+)
+_fw_opts = "".join(
+    f'<option value="{fw}" {"selected" if fw == st.session_state.mobile_framework else ""}>{fw}</option>\n'
+    for fw in FRAMEWORKS
+)
 
 st.markdown(f"""
 <input type="checkbox" id="lf-drawer-toggle">
-
 <label for="lf-drawer-toggle" id="lf-drawer-trigger" title="Settings">
-  <span class="dot"></span>
-  <span class="dot"></span>
-  <span class="dot"></span>
+  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
 </label>
-
 <label for="lf-drawer-toggle" id="lf-drawer-backdrop"></label>
 
 <div id="lf-drawer-panel">
@@ -758,47 +671,51 @@ st.markdown(f"""
 
   <hr style="border:none;border-top:1px solid #d1d9f0;margin:0 0 14px">
 
-  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🔑 API Status</div>
-  <div style="background:{_key_bg};border:1px solid {_key_border};border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;color:{_key_color};margin-bottom:16px">
+  <span class="drawer-label">🔑 API Status</span>
+  <div style="background:{_key_bg};border:1px solid {_key_border};border-radius:8px;
+              padding:9px 12px;font-size:13px;font-weight:600;color:{_key_color};margin-bottom:16px">
     {_key_status}
   </div>
 
-  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">🤖 Model</div>
-  <select class="drawer-select" id="mobile-model-select" onchange="
-    var v = this.value;
-    window._lf_model = v;
-    document.getElementById('lf-model-hint').textContent = '⚠️ Reload page to apply model change.';
-    document.getElementById('lf-model-hint').style.display = 'block';
-  ">
+  <span class="drawer-label">🤖 Model</span>
+  <select class="drawer-select" id="mobile-model-select"
+    onchange="document.getElementById('lf-model-hint').style.display='block'">
     {_model_opts}
   </select>
-  <div id="lf-model-hint" style="display:none;font-size:11px;color:#d97706;margin-bottom:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;"></div>
+  <div id="lf-model-hint" style="display:none;font-size:11px;color:#d97706;margin-bottom:10px;
+       background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;">
+    ⚠️ Change via sidebar on desktop to apply immediately
+  </div>
 
-  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">🔧 Framework</div>
-  <select class="drawer-select" id="mobile-fw-select" onchange="
-    var v = this.value;
-    window._lf_fw = v;
-    document.getElementById('lf-fw-hint').textContent = '⚠️ Reload page to apply framework change.';
-    document.getElementById('lf-fw-hint').style.display = 'block';
-  ">
+  <span class="drawer-label">🔧 Framework</span>
+  <select class="drawer-select" id="mobile-fw-select"
+    onchange="document.getElementById('lf-fw-hint').style.display='block'">
     {_fw_opts}
   </select>
-  <div id="lf-fw-hint" style="display:none;font-size:11px;color:#d97706;margin-bottom:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;"></div>
+  <div id="lf-fw-hint" style="display:none;font-size:11px;color:#d97706;margin-bottom:10px;
+       background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;">
+    ⚠️ Change via sidebar on desktop to apply immediately
+  </div>
 
-  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;margin-top:4px">📊 Session Stats</div>
+  <span class="drawer-label" style="margin-top:4px">📊 Session Stats</span>
   <div style="display:flex;gap:10px;margin-bottom:16px">
-    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;
+                padding:12px 8px;text-align:center">
       <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_builds}</div>
-      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Builds</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;
+                  text-transform:uppercase;letter-spacing:.5px">Builds</div>
     </div>
-    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;
+                padding:12px 8px;text-align:center">
       <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_tok_str}</div>
-      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Tokens</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;
+                  text-transform:uppercase;letter-spacing:.5px">Tokens</div>
     </div>
   </div>
 
-  <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b;line-height:1.6;text-align:center">
-    💡 For full settings (temperature, max tokens), use the <strong>sidebar</strong> on desktop
+  <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;
+              font-size:12px;color:#64748b;line-height:1.6;text-align:center">
+    💡 For full settings (temperature, max tokens), use the <strong>sidebar on desktop</strong>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -819,7 +736,6 @@ with tab_build:
     st.markdown(f'<div class="sec-sub">Describe what you want — get complete, runnable {framework} code instantly.</div>', unsafe_allow_html=True)
 
     bl, br = st.columns([1, 1], gap="large")
-
     with bl:
         user_req = st.text_area("Describe your app", height=160,
             placeholder="E.g. A Streamlit dashboard that fetches live crypto prices, shows candlestick charts, and has a portfolio P&L tracker.")
@@ -874,52 +790,35 @@ with tab_build:
                     full_res, tokens = call_groq(
                         [{"role": "system", "content": SYS_BUILD(framework)},
                          {"role": "user",   "content": prompt}])
-
                     code, rest = parse_code(full_res)
-
-                    exp_m = re.search(
-                        r"(?:SECTION 2|EXPLANATION)[:\s]*(.*?)(?=###\s*SECTION 3|\Z)",
-                        rest, re.DOTALL | re.IGNORECASE)
+                    exp_m = re.search(r"(?:SECTION 2|EXPLANATION)[:\s]*(.*?)(?=###\s*SECTION 3|\Z)", rest, re.DOTALL | re.IGNORECASE)
                     explanation = exp_m.group(1).strip() if exp_m else rest
-
-                    set_m = re.search(
-                        r"(?:SECTION 3|SETUP)[:\s]*(.*?)$",
-                        full_res, re.DOTALL | re.IGNORECASE)
+                    set_m = re.search(r"(?:SECTION 3|SETUP)[:\s]*(.*?)$", full_res, re.DOTALL | re.IGNORECASE)
                     setup = set_m.group(1).strip() if set_m else ""
-
                     st.session_state.active_code        = code or full_res
                     st.session_state.active_explanation = explanation
                     st.session_state.active_setup       = setup
                     st.session_state.total_builds      += 1
                     st.session_state.total_tokens      += tokens
-
                     st.session_state.build_history.append({
-                        "id":          st.session_state.total_builds,
-                        "prompt":      user_req[:150],
-                        "code":        code or full_res,
-                        "explanation": explanation,
-                        "setup":       setup,
-                        "ts":          datetime.now().strftime("%d %b %Y, %H:%M"),
-                        "model":       model,
-                        "tokens":      tokens,
-                        "framework":   framework,
+                        "id": st.session_state.total_builds, "prompt": user_req[:150],
+                        "code": code or full_res, "explanation": explanation, "setup": setup,
+                        "ts": datetime.now().strftime("%d %b %Y, %H:%M"),
+                        "model": model, "tokens": tokens, "framework": framework,
                     })
-
                     if also_tests and (code or full_res):
                         tr, _ = call_groq(
                             [{"role": "system", "content": SYS_TESTS},
-                             {"role": "user",   "content": f"Write pytest tests:\n```python\n{(code or full_res)[:4000]}\n```"}],
+                             {"role": "user", "content": f"Write pytest tests:\n```python\n{(code or full_res)[:4000]}\n```"}],
                             max_tok=3000, temp=0.05)
                         tc, _ = parse_code(tr)
                         st.session_state.test_code = tc or tr
-
                     if also_readme:
                         dr, _ = call_groq(
                             [{"role": "system", "content": SYS_DOCS},
-                             {"role": "user",   "content": f"Write a GitHub README for: {user_req}\nFramework: {framework}"}],
+                             {"role": "user", "content": f"Write a GitHub README for: {user_req}\nFramework: {framework}"}],
                             max_tok=2000, temp=0.3)
                         st.session_state.doc_result = dr
-
                     st.success(f"✅ Done! {tokens:,} tokens used.")
                     st.rerun()
                 except Exception as e:
@@ -938,7 +837,6 @@ with tab_debug:
             placeholder="def greet(name):\n    print('Hello ' + naam)  # NameError!")
         tb = st.text_area("Error / Traceback (optional)", height=90,
             placeholder="NameError: name 'naam' is not defined")
-
         col_d1, col_d2 = st.columns(2)
         debug_btn = col_d1.button("🔍 Fix My Code", type="primary", use_container_width=True)
         if col_d2.button("📥 Load from Builder", use_container_width=True, key="dbg_load"):
@@ -947,10 +845,8 @@ with tab_debug:
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
-
         if "_dbg_pre" in st.session_state:
             buggy = st.session_state.pop("_dbg_pre")
-
     with dr:
         if st.session_state.debug_code:
             st.markdown('<div class="card-green"><strong>✅ Fixed Code</strong></div>', unsafe_allow_html=True)
@@ -983,8 +879,7 @@ with tab_debug:
                 try:
                     res, tok = call_groq(
                         [{"role": "system", "content": SYS_DEBUG},
-                         {"role": "user",   "content": content}],
-                        temp=0.05)
+                         {"role": "user", "content": content}], temp=0.05)
                     fc, expl = parse_code(res)
                     st.session_state.debug_code        = fc or res
                     st.session_state.debug_explanation = expl
@@ -1008,7 +903,6 @@ with tab_refactor:
             ["PEP 8 compliance", "Type hints", "Docstrings",
              "Performance", "DRY principle", "Error handling", "Add logging"],
             default=["PEP 8 compliance", "Type hints", "Docstrings"])
-
         rc1, rc2 = st.columns(2)
         ref_btn = rc1.button("♻️ Refactor Code", type="primary", use_container_width=True)
         if rc2.button("📥 Load from Builder", use_container_width=True, key="ref_load"):
@@ -1017,10 +911,8 @@ with tab_refactor:
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
-
         if "_ref_pre" in st.session_state:
             raw_code = st.session_state.pop("_ref_pre")
-
     with rr:
         if st.session_state.refactor_code:
             st.markdown('<div class="card-blue"><strong>✅ Refactored Code</strong></div>', unsafe_allow_html=True)
@@ -1051,7 +943,7 @@ with tab_refactor:
                 try:
                     res, tok = call_groq(
                         [{"role": "system", "content": SYS_REFACTOR},
-                         {"role": "user",   "content": f"Focus on: {goals_str}\n\n```python\n{src}\n```"}],
+                         {"role": "user", "content": f"Focus on: {goals_str}\n\n```python\n{src}\n```"}],
                         temp=0.1)
                     rc_code, expl = parse_code(res)
                     st.session_state.refactor_code        = rc_code or res
@@ -1073,7 +965,6 @@ with tab_tests:
         test_src = st.text_area("Paste code to test", height=200,
             placeholder="def add(a: int, b: int) -> int:\n    return a + b")
         test_style = st.radio("Test framework", ["pytest", "unittest"], horizontal=True)
-
         tc1, tc2 = st.columns(2)
         test_btn = tc1.button("🧪 Generate Tests", type="primary", use_container_width=True)
         if tc2.button("📥 Load from Builder", use_container_width=True, key="tst_load"):
@@ -1082,10 +973,8 @@ with tab_tests:
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
-
         if "_tst_pre" in st.session_state:
             test_src = st.session_state.pop("_tst_pre")
-
     with tr:
         if st.session_state.test_code:
             st.markdown('<div class="card-amber"><strong>✅ Tests Generated</strong></div>', unsafe_allow_html=True)
@@ -1117,8 +1006,7 @@ with tab_tests:
                 try:
                     res, tok = call_groq(
                         [{"role": "system", "content": SYS_TESTS},
-                         {"role": "user",
-                          "content": f"Write comprehensive {test_style} tests:\n```python\n{src[:5000]}\n```"}],
+                         {"role": "user", "content": f"Write comprehensive {test_style} tests:\n```python\n{src[:5000]}\n```"}],
                         max_tok=4000, temp=0.05)
                     tc_code, _ = parse_code(res)
                     st.session_state.test_code     = tc_code or res
@@ -1157,7 +1045,7 @@ with tab_chat:
         else:
             st.warning("Generate code in Builder first.")
     if qa2.button("📦 Best libraries", use_container_width=True):
-        _chat_send("What are the best Python libraries for data science and ML in 2025? Give a quick rundown.")
+        _chat_send("What are the best Python libraries for data science and ML in 2025?")
     if qa3.button("⚡ Perf tips", use_container_width=True):
         _chat_send("Give me the top 5 Python performance optimisation tips with short code examples.")
     if qa4.button("🔒 Security audit", use_container_width=True):
@@ -1191,7 +1079,7 @@ with tab_chat:
                         st.error(f"Chat error: {e}")
 
     if len(st.session_state.chat_history) > 1:
-        if st.button("🗑️ Clear chat", use_container_width=False):
+        if st.button("🗑️ Clear chat"):
             st.session_state.chat_history = [{"role": "assistant", "content": "Chat cleared. Ask me anything!"}]
             st.rerun()
 
@@ -1204,15 +1092,14 @@ with tab_docs:
 
     dol, dor = st.columns([1, 1], gap="large")
     with dol:
-        doc_name = st.text_input("Project name", placeholder="e.g. DataViz Pro")
-        doc_desc = st.text_area("Project description", height=110,
+        doc_name  = st.text_input("Project name", placeholder="e.g. DataViz Pro")
+        doc_desc  = st.text_area("Project description", height=110,
             placeholder="Describe the app, features, and tech stack.")
-        doc_code = st.text_area("Source code (optional)", height=90,
+        doc_code  = st.text_area("Source code (optional)", height=90,
             placeholder="Paste source code for more accurate docs…")
         doc_types = st.multiselect("What to generate",
             ["GitHub README", "API Reference", "Developer Guide", "User Manual", "Changelog Template"],
             default=["GitHub README"])
-
         docb1, docb2 = st.columns(2)
         doc_btn = docb1.button("📄 Generate Docs", type="primary", use_container_width=True)
         if docb2.button("📥 Load code from Builder", use_container_width=True, key="doc_load"):
@@ -1221,10 +1108,8 @@ with tab_docs:
                 st.rerun()
             else:
                 st.warning("No active code in Builder yet.")
-
         if "_doc_pre" in st.session_state:
             doc_code = st.session_state.pop("_doc_pre")
-
     with dor:
         if st.session_state.doc_result:
             st.success("✅ Documentation ready:")
@@ -1255,7 +1140,7 @@ with tab_docs:
                 try:
                     res, tok = call_groq(
                         [{"role": "system", "content": SYS_DOCS},
-                         {"role": "user",   "content": "\n\n".join(parts)}],
+                         {"role": "user", "content": "\n\n".join(parts)}],
                         max_tok=4000, temp=0.3)
                     st.session_state.doc_result    = res
                     st.session_state.total_tokens += tok
@@ -1295,10 +1180,8 @@ with tab_history:
                     f'🔧 {item["framework"]} &nbsp;·&nbsp; '
                     f'🔤 {item["tokens"]:,} tokens</div>',
                     unsafe_allow_html=True)
-
                 st.markdown(f"**Prompt:** {item['prompt']}")
                 st.divider()
-
                 hct, het = st.tabs(["📋 Code", "📖 Explanation"])
                 with hct:
                     st.code(item["code"], language="python")
