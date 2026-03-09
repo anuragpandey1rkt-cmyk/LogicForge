@@ -277,117 +277,164 @@ label, p { color: var(--text) !important; }
 }
 .hist-meta { font-size: 11px; color: var(--text3); font-family: 'JetBrains Mono', monospace; margin-top: 4px; }
 
-/* ── Floating 3-dot menu button (always visible) ── */
-#lf-menu-btn {
+/* ═══════════════════════════════════════════
+   PURE CSS CHECKBOX DRAWER — no JS needed
+   Works inside Streamlit's sandboxed iframe
+   ═══════════════════════════════════════════ */
+
+/* Hide the checkbox input itself */
+#lf-drawer-toggle {
     position: fixed;
-    top: 14px;
-    left: 14px;
-    z-index: 99999;
-    width: 42px;
-    height: 42px;
+    opacity: 0;
+    width: 0; height: 0;
+    pointer-events: none;
+}
+
+/* ── 3-dot trigger label (always fixed top-left) ── */
+#lf-drawer-trigger {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 999999;
+    width: 44px;
+    height: 44px;
     background: var(--accent);
-    border: none;
-    border-radius: 10px;
+    border-radius: 11px;
     cursor: pointer;
-    display: flex;
+    display: none;           /* shown only on mobile via media query */
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    box-shadow: 0 3px 12px rgba(79,70,229,0.4);
-    transition: background 0.2s, transform 0.15s;
+    gap: 5px;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.45);
+    transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
 }
-#lf-menu-btn:hover { background: var(--accent-h); transform: scale(1.05); }
-#lf-menu-btn span {
+#lf-drawer-trigger:hover,
+#lf-drawer-trigger:active {
+    background: var(--accent-h);
+    transform: scale(1.07);
+    box-shadow: 0 6px 20px rgba(79,70,229,0.55);
+}
+/* The three dots */
+#lf-drawer-trigger .dot {
     display: block;
     width: 5px; height: 5px;
-    background: white;
+    background: #fff;
     border-radius: 50%;
 }
 
-/* Sidebar overlay panel */
-#lf-sidebar-overlay {
+/* ── Backdrop overlay ── */
+#lf-drawer-backdrop {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(15,15,30,0.45);
-    z-index: 99997;
-    backdrop-filter: blur(2px);
+    background: rgba(10,10,30,0.5);
+    z-index: 999997;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    cursor: pointer;
 }
-#lf-sidebar-overlay.open { display: block; }
 
-#lf-sidebar-panel {
+/* ── Slide-in drawer panel ── */
+#lf-drawer-panel {
     position: fixed;
     top: 0; left: 0;
-    width: min(320px, 90vw);
+    width: min(300px, 88vw);
     height: 100vh;
     background: var(--surface);
-    border-right: 1px solid var(--border);
-    box-shadow: 4px 0 24px rgba(79,70,229,0.15);
-    z-index: 99998;
-    transform: translateX(-110%);
-    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    border-right: 2px solid var(--border);
+    box-shadow: 6px 0 32px rgba(79,70,229,0.18);
+    z-index: 999998;
+    transform: translateX(-105%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
-    padding: 16px;
+    overflow-x: hidden;
+    padding: 20px 16px 24px;
+    box-sizing: border-box;
 }
-#lf-sidebar-panel.open { transform: translateX(0); }
 
-#lf-sidebar-close {
+/* ── Close label inside panel ── */
+#lf-drawer-close {
     position: absolute;
-    top: 12px; right: 12px;
+    top: 14px; right: 14px;
+    width: 30px; height: 30px;
     background: var(--accent-lt);
-    border: none;
     border-radius: 8px;
-    width: 32px; height: 32px;
     cursor: pointer;
-    font-size: 16px;
-    color: var(--accent);
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700;
+    font-size: 14px; font-weight: 800;
+    color: var(--accent);
+    line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
 }
-#lf-sidebar-close:hover { background: var(--accent); color: white; }
+#lf-drawer-close:hover { background: var(--accent); color: #fff; }
 
-/* Hide native Streamlit sidebar on mobile, show our custom one */
+/* ── When checkbox is CHECKED → show panel + backdrop ── */
+#lf-drawer-toggle:checked ~ #lf-drawer-backdrop { display: block; }
+#lf-drawer-toggle:checked ~ #lf-drawer-panel    { transform: translateX(0); }
+
+/* ═══════════════════════════════════════════
+   MOBILE BREAKPOINT
+   ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
-    [data-testid="stSidebar"] { display: none !important; }
+    /* Hide native Streamlit sidebar + its collapse button */
+    [data-testid="stSidebar"]        { display: none !important; }
     [data-testid="collapsedControl"] { display: none !important; }
-    #lf-menu-btn { display: flex !important; }
+    section[data-testid="stSidebarContent"] { display: none !important; }
 
-    /* Header */
-    .lf-header { padding: 14px 16px; gap: 8px; padding-left: 68px; }
-    .lf-header h1 { font-size: 19px !important; }
-    .lf-badge { font-size: 10px; padding: 3px 10px; }
+    /* Show our 3-dot trigger */
+    #lf-drawer-trigger { display: flex !important; }
 
-    /* Tabs */
+    /* Header: indent to avoid overlap with 3-dot button */
+    .lf-header {
+        padding: 14px 16px 14px 66px !important;
+        gap: 8px !important;
+    }
+    .lf-header h1 { font-size: 18px !important; }
+    .lf-badge { font-size: 10px !important; padding: 3px 9px !important; }
+
+    /* Tabs: compact wrap */
     .stTabs [data-baseweb="tab-list"] { gap: 2px !important; }
-    .stTabs [data-baseweb="tab"] { font-size: 11px !important; padding: 7px 9px !important; }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 11px !important;
+        padding: 7px 9px !important;
+    }
 
-    /* Buttons */
-    .stButton > button { font-size: 13px !important; padding: 9px 14px !important; }
+    /* Buttons full width */
+    .stButton > button {
+        font-size: 13px !important;
+        padding: 9px 14px !important;
+    }
     .stDownloadButton > button { font-size: 13px !important; }
 
-    /* Chat input */
+    /* Chat */
     [data-testid="stChatInput"] textarea { font-size: 14px !important; }
 
-    /* Metrics */
+    /* Cards / misc */
     [data-testid="stMetric"] { padding: 10px 12px !important; }
     .sec-title { font-size: 16px; }
     .empty-state { padding: 28px 16px; }
 }
 
-/* On desktop: hide the floating button */
+/* ── Desktop: hide drawer elements entirely ── */
 @media (min-width: 769px) {
-    #lf-menu-btn { display: none !important; }
-    #lf-sidebar-overlay { display: none !important; }
-    #lf-sidebar-panel { display: none !important; }
+    #lf-drawer-trigger   { display: none !important; }
+    #lf-drawer-backdrop  { display: none !important; }
+    #lf-drawer-panel     { display: none !important; }
+    #lf-drawer-toggle    { display: none !important; }
 }
 
-/* Small phones */
-@media (max-width: 480px) {
-    .lf-header h1 { font-size: 16px !important; }
+/* Extra small phones */
+@media (max-width: 420px) {
+    .lf-header h1 { font-size: 15px !important; }
     .stTabs [data-baseweb="tab"] { font-size: 10px !important; padding: 6px 7px !important; }
 }
 
+/* Streamlit chrome */
 #MainMenu, footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 </style>
@@ -453,7 +500,7 @@ with st.sidebar:
     MODEL_MAP = {
         "llama-3.3-70b-versatile":       "🧠 Llama 3.3 70B — Best quality",
         "llama-3.1-8b-instant":          "⚡ Llama 3.1 8B — Fastest",
-        "deepseek-r1-distill-llama-70b": "🔍 DeepSeek R1 70B — Reasoning",
+        "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick — Latest",
     }
     model = st.selectbox("Model", list(MODEL_MAP.keys()),
                          format_func=lambda x: MODEL_MAP[x], index=0)
@@ -596,85 +643,75 @@ st.markdown("""
 if not api_key:
     st.warning("⚠️ **No API key detected.** Please enter your API key in the sidebar to use all features.")
 
-# ── Floating 3-dot button + custom mobile sidebar panel ──
-# Build sidebar panel content as HTML so it mirrors the native sidebar on mobile
+# ── Mobile drawer: pure CSS checkbox toggle (no JS — works in Streamlit sandbox) ──
 _model_labels = {
-    "llama-3.3-70b-versatile":       "🧠 Llama 3.3 70B",
-    "llama-3.1-8b-instant":          "⚡ Llama 3.1 8B",
-    "deepseek-r1-distill-llama-70b": "🔍 DeepSeek R1 70B",
+    "llama-3.3-70b-versatile":                    "🧠 Llama 3.3 70B",
+    "llama-3.1-8b-instant":                       "⚡ Llama 3.1 8B",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "🦙 Llama 4 Maverick",
 }
-_model_name = _model_labels.get(model, model)
-_key_status = "✅ API key active" if api_key else "⚠️ No API key — enter below"
-_builds = st.session_state.total_builds
-_tokens_val = st.session_state.total_tokens
-_tokens_str = f"{_tokens_val/1000:.1f}k" if _tokens_val >= 1000 else str(_tokens_val)
+_model_name  = _model_labels.get(model, model)
+_key_status  = "✅ API key active" if api_key else "⚠️ No API key set"
+_key_color   = "#059669" if api_key else "#d97706"
+_key_bg      = "#ecfdf5" if api_key else "#fffbeb"
+_key_border  = "#a7f3d0" if api_key else "#fde68a"
+_builds      = st.session_state.total_builds
+_tok         = st.session_state.total_tokens
+_tok_str     = f"{_tok/1000:.1f}k" if _tok >= 1000 else str(_tok)
 
 st.markdown(f"""
-<!-- Floating 3-dot menu button (always visible on mobile) -->
-<button id="lf-menu-btn" aria-label="Open settings" title="Settings">
-  <span></span><span></span><span></span>
-</button>
+<!-- hidden checkbox — the toggle state holder -->
+<input type="checkbox" id="lf-drawer-toggle">
 
-<!-- Overlay backdrop -->
-<div id="lf-sidebar-overlay" onclick="closeSidebar()"></div>
+<!-- 3-dot trigger label -->
+<label for="lf-drawer-toggle" id="lf-drawer-trigger" title="Settings">
+  <span class="dot"></span>
+  <span class="dot"></span>
+  <span class="dot"></span>
+</label>
 
-<!-- Custom sidebar panel -->
-<div id="lf-sidebar-panel">
-  <button id="lf-sidebar-close" onclick="closeSidebar()" title="Close">✕</button>
+<!-- Backdrop (clicking it closes the drawer) -->
+<label for="lf-drawer-toggle" id="lf-drawer-backdrop"></label>
 
-  <div style="margin-bottom:16px">
-    <div style="font-size:20px;font-weight:800;color:#4f46e5;margin-bottom:2px">⚡ LogicForge</div>
-    <div style="font-size:12px;color:#94a3b8">AI Code Architect · v2.0</div>
+<!-- Drawer panel -->
+<div id="lf-drawer-panel">
+  <label for="lf-drawer-toggle" id="lf-drawer-close" title="Close">✕</label>
+
+  <div style="margin:0 0 16px 0;padding-right:40px">
+    <div style="font-size:21px;font-weight:800;color:#4f46e5">⚡ LogicForge</div>
+    <div style="font-size:12px;color:#94a3b8;margin-top:2px">AI Code Architect · v2.0</div>
   </div>
-  <hr style="border-color:#d1d9f0;margin:12px 0">
 
-  <div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:6px">🔑 API Key Status</div>
-  <div style="background:{'#ecfdf5' if api_key else '#fffbeb'};border:1px solid {'#a7f3d0' if api_key else '#fde68a'};border-radius:8px;padding:8px 12px;font-size:13px;color:{'#059669' if api_key else '#d97706'};margin-bottom:12px">
+  <hr style="border:none;border-top:1px solid #d1d9f0;margin:0 0 14px">
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🔑 API Status</div>
+  <div style="background:{_key_bg};border:1px solid {_key_border};border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;color:{_key_color};margin-bottom:14px">
     {_key_status}
   </div>
 
-  <div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:6px">⚙️ Current Settings</div>
-  <div style="background:#f8faff;border:1px solid #d1d9f0;border-radius:8px;padding:10px 12px;font-size:13px;color:#475569;line-height:1.8;margin-bottom:12px">
-    <div><strong>Model:</strong> {_model_name}</div>
-    <div><strong>Framework:</strong> {framework}</div>
-    <div><strong>Temperature:</strong> {temperature}</div>
-    <div><strong>Max Tokens:</strong> {max_tokens:,}</div>
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">⚙️ Active Settings</div>
+  <div style="background:#f8faff;border:1px solid #d1d9f0;border-radius:8px;padding:11px 13px;font-size:13px;color:#334155;line-height:1.9;margin-bottom:14px">
+    <div>🤖 <strong>Model:</strong> {_model_name}</div>
+    <div>🔧 <strong>Framework:</strong> {framework}</div>
+    <div>🌡️ <strong>Temp:</strong> {temperature}</div>
+    <div>📏 <strong>Max tokens:</strong> {max_tokens:,}</div>
   </div>
 
-  <div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px">📊 Session Stats</div>
-  <div style="display:flex;gap:8px;margin-bottom:12px">
-    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#4f46e5">{_builds}</div>
-      <div style="font-size:10px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px">Builds</div>
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">📊 Session Stats</div>
+  <div style="display:flex;gap:10px;margin-bottom:16px">
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_builds}</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Builds</div>
     </div>
-    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#4f46e5">{_tokens_str}</div>
-      <div style="font-size:10px;color:#6366f1;text-transform:uppercase;letter-spacing:0.5px">Tokens</div>
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_tok_str}</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Tokens</div>
     </div>
   </div>
 
-  <div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:16px;line-height:1.5">
-    To change model, framework, or API key<br>use the sidebar on desktop view
+  <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b;line-height:1.5;text-align:center">
+    💡 To change model, framework or API key, use the <strong>sidebar</strong> on desktop
   </div>
 </div>
-
-<script>
-function openSidebar() {{
-  document.getElementById('lf-sidebar-panel').classList.add('open');
-  document.getElementById('lf-sidebar-overlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}}
-function closeSidebar() {{
-  document.getElementById('lf-sidebar-panel').classList.remove('open');
-  document.getElementById('lf-sidebar-overlay').classList.remove('open');
-  document.body.style.overflow = '';
-}}
-document.getElementById('lf-menu-btn').addEventListener('click', openSidebar);
-// Close on Escape key
-document.addEventListener('keydown', function(e) {{
-  if (e.key === 'Escape') closeSidebar();
-}});
-</script>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════
