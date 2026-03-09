@@ -332,25 +332,25 @@ with st.sidebar:
     st.divider()
 
     if not api_key:
-        st.markdown("### 🔑 Groq API Key")
+        st.markdown("### 🔑 AI API Key")
         entered = st.text_input("API Key", type="password",
-                                placeholder="gsk_...",
-                                help="Free key at console.groq.com",
+                                placeholder="Enter your API key…",
+                                help="Paste your API key to unlock all features",
                                 label_visibility="collapsed")
         if entered:
             st.session_state.groq_api_key = entered
             api_key = entered
             st.success("✅ Key saved!")
         else:
-            st.info("🔑 Enter your Groq API key above")
+            st.info("🔑 Enter your API key above to start")
         st.divider()
 
     st.markdown("### ⚙️ Settings")
     MODEL_MAP = {
-        "llama-3.3-70b-versatile": "🧠 Llama 3.3 70B — Best",
-        "llama-3.1-8b-instant":    "⚡ Llama 3.1 8B — Fast",
-        "mixtral-8x7b-32768":      "🔀 Mixtral 8×7B — Long ctx",
-        "gemma2-9b-it":            "💎 Gemma2 9B — Balanced",
+        "llama-3.3-70b-versatile":    "🧠 Llama 3.3 70B — Best quality",
+        "llama-3.1-8b-instant":       "⚡ Llama 3.1 8B — Fastest",
+        "llama3-70b-8192":            "🔀 Llama 3 70B — Long context",
+        "llama-3.1-70b-versatile":    "💎 Llama 3.1 70B — Balanced",
     }
     model = st.selectbox("Model", list(MODEL_MAP.keys()),
                          format_func=lambda x: MODEL_MAP[x], index=0)
@@ -378,7 +378,7 @@ with st.sidebar:
 # ══════════════════════════════════════════════
 def call_groq(messages: list, max_tok: int | None = None, temp: float | None = None) -> tuple[str, int]:
     if not api_key:
-        st.error("⚠️ Add your Groq API key in the sidebar first.")
+        st.error("⚠️ Add your API key in the sidebar first.")
         st.stop()
     client = Groq(api_key=api_key)
     resp = client.chat.completions.create(
@@ -484,12 +484,12 @@ st.markdown("""
     <h1>⚡ LogicForge AI Architect</h1>
     <p>Build · Debug · Refactor · Test · Document — all in one place</p>
   </div>
-  <span class="lf-badge">v2.0 · Groq</span>
+  <span class="lf-badge">v2.0 · AI Powered</span>
 </div>
 """, unsafe_allow_html=True)
 
 if not api_key:
-    st.warning("⚠️ **No API key.** Enter your Groq API key in the sidebar to unlock all features.")
+    st.warning("⚠️ **No API key detected.** Please enter your API key in the sidebar to use all features.")
 
 # ══════════════════════════════════════════════
 # 9. TABS
@@ -552,7 +552,7 @@ with tab_build:
         if not user_req.strip():
             st.warning("Please describe your app idea.")
         elif not api_key:
-            st.error("Add your Groq API key in the sidebar.")
+            st.error("Add your API key in the sidebar.")
         else:
             prompt = f"Framework: {framework}\nTask: {user_req}"
             if extra.strip():
@@ -663,7 +663,7 @@ with tab_debug:
         if not src:
             st.warning("Paste some code first.")
         elif not api_key:
-            st.error("Add your Groq API key in the sidebar.")
+            st.error("Add your API key in the sidebar.")
         else:
             content = f"Buggy code:\n```python\n{src}\n```"
             if tb.strip():
@@ -733,7 +733,7 @@ with tab_refactor:
         if not src:
             st.warning("Paste some code first.")
         elif not api_key:
-            st.error("Add your Groq API key in the sidebar.")
+            st.error("Add your API key in the sidebar.")
         else:
             goals_str = ", ".join(goals) if goals else "general improvements"
             with st.spinner("♻️ Refactoring…"):
@@ -800,7 +800,7 @@ with tab_tests:
         if not src:
             st.warning("Paste code or load from Builder first.")
         elif not api_key:
-            st.error("Add your Groq API key in the sidebar.")
+            st.error("Add your API key in the sidebar.")
         else:
             with st.spinner("🧪 Writing tests…"):
                 try:
@@ -872,7 +872,7 @@ with tab_chat:
     # Chat input
     if user_input := st.chat_input("Ask anything… paste code or an error…"):
         if not api_key:
-            st.error("Add your Groq API key in the sidebar.")
+            st.error("Add your API key in the sidebar.")
         else:
             st.session_state.chat_history.append({"role": "user", "content": user_input})
             with st.chat_message("user"):
@@ -964,7 +964,7 @@ with tab_docs:
         if not doc_desc.strip():
             st.warning("Provide at least a description.")
         elif not api_key:
-            st.error("Add your Groq API key in the sidebar.")
+            st.error("Add your API key in the sidebar.")
         else:
             parts = [f"Project: {doc_name or 'My App'}", f"Description: {doc_desc}"]
             if doc_code.strip():
@@ -1005,8 +1005,8 @@ with tab_history:
         hm3.metric("Models Used",   len({b["model"] for b in st.session_state.build_history}))
         st.divider()
 
-        for item in reversed(st.session_state.build_history):
-            bid = item["id"]
+        for _idx, item in enumerate(reversed(st.session_state.build_history)):
+            bid = item.get("id", len(st.session_state.build_history) - _idx)
             label = item["prompt"][:80] + ("…" if len(item["prompt"]) > 80 else "")
             with st.expander(f"**#{bid}** — {label}"):
                 st.markdown(
