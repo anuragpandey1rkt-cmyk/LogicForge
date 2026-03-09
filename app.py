@@ -53,11 +53,6 @@ st.caption("Build. Chat. Debug. Document.")
 
 with st.sidebar:
     st.header("⚙️ Settings")
-    if not api_key:
-        api_key = st.text_input("Enter Groq API Key", type="password")
-    else:
-        st.success("API Key Connected ✅")
-    
     # SIMPLIFIED MODEL SELECTOR (Text Only - Stable)
     model = st.selectbox("Select Model", [
         "llama-3.3-70b-versatile",      # Best for Logic & Code
