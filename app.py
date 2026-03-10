@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="LogicForge AI",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="collapsed",
 )
 
 # ══════════════════════════════════════════════
@@ -294,8 +294,7 @@ label, p { color: var(--text) !important; }
 #lf-drawer-trigger {
     position: fixed;
     top: 12px;
-    right: 14px;
-    left: auto;
+    left: 12px;
     z-index: 999999;
     width: 44px;
     height: 44px;
@@ -382,29 +381,12 @@ label, p { color: var(--text) !important; }
    MOBILE BREAKPOINT
    ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
-    /* Hide native Streamlit sidebar + its collapse button */
-    [data-testid="stSidebar"] {
-        position: fixed !important;
-        top: 0;
-        left: -320px;
-        width: 300px !important;
-        height: 100vh !important;
-        transition: left 0.3s ease;
-        z-index: 999998;
-    }
-
-    #lf-drawer-toggle:checked ~ div [data-testid="stSidebar"] {
-        left: 0 !important;
-    }
-    [data-testid="collapsedControl"] { display: none !important; }
-    section[data-testid="stSidebarContent"] { display: none !important; }
-
-    /* Show our 3-dot trigger */
+    /* Show our 3-dot trigger on mobile */
     #lf-drawer-trigger { display: flex !important; }
 
     /* Header: indent to avoid overlap with 3-dot button */
     .lf-header {
-        padding: 14px 60px 14px 16px !important;
+        padding: 14px 16px 14px 66px !important;
         gap: 8px !important;
     }
     .lf-header h1 { font-size: 18px !important; }
@@ -433,10 +415,56 @@ label, p { color: var(--text) !important; }
     .empty-state { padding: 28px 16px; }
 }
 
-
+/* ── Desktop: hide custom drawer (native sidebar handles it) ── */
+@media (min-width: 769px) {
+    #lf-drawer-trigger   { display: none !important; }
     #lf-drawer-backdrop  { display: none !important; }
     #lf-drawer-panel     { display: none !important; }
     #lf-drawer-toggle    { display: none !important; }
+}
+
+/* ── Native sidebar toggle button — styled as purple ⋮ pill ──
+   Shown on BOTH mobile and desktop, always fixed top-left        ── */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    top: 12px !important;
+    left: 12px !important;
+    z-index: 999998 !important;
+    width: 44px !important;
+    height: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+[data-testid="collapsedControl"] button {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    background: var(--accent) !important;
+    border: none !important;
+    border-radius: 11px !important;
+    box-shadow: 0 4px 14px rgba(79,70,229,0.4) !important;
+    cursor: pointer !important;
+    transition: background 0.18s, transform 0.15s !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    position: relative !important;
+}
+[data-testid="collapsedControl"] button:hover {
+    background: var(--accent-h) !important;
+    transform: scale(1.06) !important;
+}
+[data-testid="collapsedControl"] button svg { display: none !important; }
+[data-testid="collapsedControl"] button::after {
+    content: "⋮";
+    color: #fff !important;
+    font-size: 24px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
 }
 
 /* Extra small phones */
@@ -685,7 +713,43 @@ st.markdown(f"""
 
 <!-- Drawer panel -->
 <div id="lf-drawer-panel">
-<label for="lf-drawer-toggle" id="lf-drawer-close">✕</label>
+  <label for="lf-drawer-toggle" id="lf-drawer-close" title="Close">✕</label>
+
+  <div style="margin:0 0 16px 0;padding-right:40px">
+    <div style="font-size:21px;font-weight:800;color:#4f46e5">⚡ LogicForge</div>
+    <div style="font-size:12px;color:#94a3b8;margin-top:2px">AI Code Architect · v2.0</div>
+  </div>
+
+  <hr style="border:none;border-top:1px solid #d1d9f0;margin:0 0 14px">
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🔑 API Status</div>
+  <div style="background:{_key_bg};border:1px solid {_key_border};border-radius:8px;padding:9px 12px;font-size:13px;font-weight:600;color:{_key_color};margin-bottom:14px">
+    {_key_status}
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">⚙️ Active Settings</div>
+  <div style="background:#f8faff;border:1px solid #d1d9f0;border-radius:8px;padding:11px 13px;font-size:13px;color:#334155;line-height:1.9;margin-bottom:14px">
+    <div>🤖 <strong>Model:</strong> {_model_name}</div>
+    <div>🔧 <strong>Framework:</strong> {framework}</div>
+    <div>🌡️ <strong>Temp:</strong> {temperature}</div>
+    <div>📏 <strong>Max tokens:</strong> {max_tokens:,}</div>
+  </div>
+
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">📊 Session Stats</div>
+  <div style="display:flex;gap:10px;margin-bottom:16px">
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_builds}</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Builds</div>
+    </div>
+    <div style="flex:1;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 8px;text-align:center">
+      <div style="font-size:26px;font-weight:800;color:#4f46e5;line-height:1">{_tok_str}</div>
+      <div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Tokens</div>
+    </div>
+  </div>
+
+  <div style="background:#f1f5f9;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b;line-height:1.5;text-align:center">
+    💡 To change model, framework or API key, use the <strong>sidebar</strong> on desktop
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
